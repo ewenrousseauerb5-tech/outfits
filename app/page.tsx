@@ -158,18 +158,20 @@ const compatibleColors: Record<string, string[]> = {
   olive: ["white", "black", "navy", "brown"],
 };
 
-const colorOptions = ["white", "black", "navy", "blue", "gray", "brown", "olive"];
+const importDefaults: Record<Category, { color: string; formality: number }> = {
+  top: { color: "white", formality: 3 },
+  bottom: { color: "navy", formality: 3 },
+  shoes: { color: "brown", formality: 3 },
+};
 
-const emptyGarment = {
-  name: "",
-  category: "top" as Category,
-  color: "white",
-  season: "all" as Season,
-  formality: 3,
-  image: "",
-  images: [] as string[],
-  productUrl: "",
-  notes: "",
+const colorKeywords: Record<string, string[]> = {
+  white: ["white", "blanco", "blanca", "cream", "ivory"],
+  black: ["black", "negro", "negra"],
+  navy: ["navy", "marino"],
+  blue: ["blue", "azul", "denim", "jean", "vaquero"],
+  gray: ["gray", "grey", "gris"],
+  brown: ["brown", "marron", "cuero", "camel"],
+  olive: ["olive", "oliva", "verde"],
 };
 
 function normalizeGarments(value: unknown): Garment[] {
@@ -220,6 +222,77 @@ function readImages(
         }),
     ),
   ).then(callback);
+}
+
+function titleFromUrl(url: string, category: Category) {
+  try {
+    const parsed = new URL(url);
+    const slug = parsed.pathname.split("/").filter(Boolean).at(-1) ?? parsed.hostname;
+    const clean = decodeURIComponent(slug)
+      .replace(/\.[a-z0-9]+$/i, "")
+      .replace(/[-_+]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    if (clean) return clean.replace(/\b\w/g, (letter) => letter.toUpperCase());
+    return parsed.hostname.replace(/^www\./, "");
+  } catch {
+    return `${categoryShortLabels[category]} importado`;
+  }
+}
+
+function inferColor(source: string, category: Category) {
+  const normalized = source.toLowerCase();
+  const color = Object.entries(colorKeywords).find(([, keywords]) =>
+    keywords.some((keyword) => normalized.includes(keyword)),
+  )?.[0];
+
+  return color ?? importDefaults[category].color;
+}
+
+function inferFormality(source: string, category: Category) {
+  const normalized = source.toLowerCase();
+  if (/oxford|shirt|camisa|mocasin|loafer|formal|tailored|trouser|chino/.test(normalized)) {
+    return 4;
+  }
+  if (/sneaker|zapatilla|tee|camiseta|jean|vaquero|denim|cargo/.test(normalized)) {
+    return 2;
+  }
+
+  return importDefaults[category].formality;
+}
+
+function createImportedGarment({
+  category,
+  image,
+  source,
+  index,
+}: {
+  category: Category;
+  image?: string;
+  source?: string;
+  index: number;
+}): Garment {
+  const basis = source ?? `${categoryShortLabels[category]} foto ${index + 1}`;
+  const name = source
+    ? titleFromUrl(source, category)
+    : `${categoryLabels[category]} importada ${index + 1}`;
+
+  return {
+    id: `g-${Date.now()}-${category}-${index}-${Math.random().toString(16).slice(2)}`,
+    name,
+    category,
+    color: inferColor(basis, category),
+    season: "all",
+    formality: inferFormality(basis, category),
+    image,
+    images: image ? [image] : [],
+    productUrl: source?.trim() ?? "",
+    favorite: false,
+    notes: source
+      ? "Importada desde enlace de tienda."
+      : "Importada desde foto. Lista para combinar.",
+  };
 }
 
 function scoreGarment(garment: Garment, occasion: Occasion, season: Season, intent: Intent) {
@@ -287,7 +360,13 @@ export default function Home() {
   const [occasion, setOccasion] = useState<Occasion>("office");
   const [season, setSeason] = useState<Season>("all");
   const [intent, setIntent] = useState<Intent>("minimal");
-  const [form, setForm] = useState(emptyGarment);
+  const [importDrafts, setImportDrafts] = useState<
+    Record<Category, { images: string[]; links: string }>
+  >({
+    top: { images: [], links: "" },
+    bottom: { images: [], links: "" },
+    shoes: { images: [], links: "" },
+  });
   const [referenceForm, setReferenceForm] = useState({
     title: "",
     mood: "minimal" as Intent,
@@ -338,23 +417,36 @@ export default function Home() {
     [wardrobe],
   );
 
-  function addGarment(event: FormEvent<HTMLFormElement>) {
+  function importGarments(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!form.name.trim()) return;
+    const imported = allowedCategories.flatMap((category) => {
+      const draft = importDrafts[category];
+      const photoItems = draft.images.map((image, index) =>
+        createImportedGarment({ category, image, index }),
+      );
+      const linkItems = draft.links
+        .split(/\n|,/)
+        .map((link) => link.trim())
+        .filter(Boolean)
+        .map((source, index) =>
+          createImportedGarment({
+            category,
+            source,
+            index: draft.images.length + index,
+          }),
+        );
 
-    setWardrobe((items) => [
-      {
-        ...form,
-        id: `g-${Date.now()}`,
-        name: form.name.trim(),
-        image: getPrimaryImage(form),
-        images: form.images,
-        productUrl: form.productUrl.trim(),
-        favorite: false,
-      },
-      ...items,
-    ]);
-    setForm(emptyGarment);
+      return [...photoItems, ...linkItems];
+    });
+
+    if (!imported.length) return;
+
+    setWardrobe((items) => [...imported, ...items]);
+    setImportDrafts({
+      top: { images: [], links: "" },
+      bottom: { images: [], links: "" },
+      shoes: { images: [], links: "" },
+    });
   }
 
   function addReference(event: FormEvent<HTMLFormElement>) {
@@ -545,120 +637,79 @@ export default function Home() {
       <section className="workspace-grid" aria-label="Anadir prendas y referencias">
         <div className="tool-panel">
           <div className="section-heading compact">
-            <p className="eyebrow">Nueva prenda</p>
-            <h2>Catalogo de tres piezas.</h2>
+            <p className="eyebrow">Importar prendas</p>
+            <h2>Fotos o enlaces. Sin fichas manuales.</h2>
           </div>
-          <form className="stacked-form" onSubmit={addGarment}>
-            <label>
-              Nombre
-              <input
-                required
-                placeholder="Ej. camisa azul claro"
-                value={form.name}
-                onChange={(event) => setForm({ ...form, name: event.target.value })}
-              />
-            </label>
-            <div className="form-grid">
-              <label>
-                Categoria
-                <select
-                  value={form.category}
-                  onChange={(event) =>
-                    setForm({ ...form, category: event.target.value as Category })
-                  }
-                >
-                  {allowedCategories.map((category) => (
-                    <option key={category} value={category}>
-                      {categoryLabels[category]}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Color
-                <select
-                  value={form.color}
-                  onChange={(event) => setForm({ ...form, color: event.target.value })}
-                >
-                  {colorOptions.map((color) => (
-                    <option key={color} value={color}>
-                      {color}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Temporada
-                <select
-                  value={form.season}
-                  onChange={(event) =>
-                    setForm({ ...form, season: event.target.value as Season })
-                  }
-                >
-                  {Object.entries(seasonLabels).map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Formalidad
-                <input
-                  type="range"
-                  min="1"
-                  max="5"
-                  value={form.formality}
-                  onChange={(event) =>
-                    setForm({ ...form, formality: Number(event.target.value) })
-                  }
-                />
-              </label>
-            </div>
-            <label>
-              Fotos
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={(event) =>
-                  readImages(event, (images) =>
-                    setForm({ ...form, image: images[0], images }),
-                  )
-                }
-              />
-            </label>
-            {form.images.length > 0 && (
-              <div className="upload-preview" aria-label="Fotos cargadas">
-                {form.images.map((image, index) => (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={image}
-                    alt={`Foto ${index + 1} de ${form.name || "prenda"}`}
-                    key={`${image}-${index}`}
+          <form className="import-form" onSubmit={importGarments}>
+            {allowedCategories.map((category) => (
+              <section className="import-lane" key={category}>
+                <div className="import-lane-header">
+                  <div>
+                    <p>{categoryLabels[category]}</p>
+                    <strong>{categoryShortLabels[category]}</strong>
+                  </div>
+                  <span>
+                    {importDrafts[category].images.length} fotos ·{" "}
+                    {
+                      importDrafts[category].links
+                        .split(/\n|,/)
+                        .map((link) => link.trim())
+                        .filter(Boolean).length
+                    }{" "}
+                    enlaces
+                  </span>
+                </div>
+                <label className="drop-control">
+                  Fotos
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={(event) =>
+                      readImages(event, (images) =>
+                        setImportDrafts((drafts) => ({
+                          ...drafts,
+                          [category]: {
+                            ...drafts[category],
+                            images: [...drafts[category].images, ...images],
+                          },
+                        })),
+                      )
+                    }
                   />
-                ))}
-              </div>
-            )}
-            <label>
-              Enlace de producto
-              <input
-                inputMode="url"
-                placeholder="https://..."
-                value={form.productUrl}
-                onChange={(event) => setForm({ ...form, productUrl: event.target.value })}
-              />
-            </label>
-            <label>
-              Notas de estilo
-              <textarea
-                placeholder="Corte, ajuste, cuando usarla, combinaciones que funcionan..."
-                value={form.notes}
-                onChange={(event) => setForm({ ...form, notes: event.target.value })}
-              />
-            </label>
+                </label>
+                {importDrafts[category].images.length > 0 && (
+                  <div className="upload-preview compact" aria-label={`${categoryLabels[category]} cargadas`}>
+                    {importDrafts[category].images.map((image, index) => (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={image}
+                        alt={`${categoryLabels[category]} ${index + 1}`}
+                        key={`${image}-${index}`}
+                      />
+                    ))}
+                  </div>
+                )}
+                <label>
+                  Enlaces de tienda
+                  <textarea
+                    placeholder="Pega uno o varios enlaces, uno por linea"
+                    value={importDrafts[category].links}
+                    onChange={(event) =>
+                      setImportDrafts((drafts) => ({
+                        ...drafts,
+                        [category]: {
+                          ...drafts[category],
+                          links: event.target.value,
+                        },
+                      }))
+                    }
+                  />
+                </label>
+              </section>
+            ))}
             <button className="primary-action" type="submit">
-              Anadir al armario
+              Importar al armario
             </button>
           </form>
         </div>

@@ -455,6 +455,61 @@ input[type="range"] {
   gap: 14px;
 }
 
+.import-form {
+  display: grid;
+  gap: 12px;
+}
+
+.import-lane {
+  display: grid;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(244, 241, 234, 0.5);
+  padding: 14px;
+}
+
+.import-lane-header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.import-lane-header p,
+.import-lane-header strong {
+  margin: 0;
+}
+
+.import-lane-header p {
+  color: var(--clay);
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.import-lane-header strong {
+  display: block;
+  margin-top: 3px;
+  font-size: 1.2rem;
+}
+
+.import-lane-header span {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  padding: 6px 9px;
+  font-size: 0.78rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.drop-control input {
+  border-style: dashed;
+  background: var(--surface);
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -473,6 +528,10 @@ input[type="range"] {
   border: 1px solid var(--line);
   border-radius: 6px;
   object-fit: cover;
+}
+
+.upload-preview.compact {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
 }
 
 .primary-action,

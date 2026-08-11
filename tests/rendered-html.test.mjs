@@ -18,9 +18,13 @@ test("the outfit app source contains the primary product experience", async () =
   assert.match(page, /Parte de abajo/);
   assert.match(page, /Zapatos/);
   assert.match(page, /Look recomendado/);
-  assert.match(page, /Enlace de producto/);
+  assert.match(page, /Importar prendas/);
+  assert.match(page, /Fotos o enlaces\. Sin fichas manuales/);
+  assert.match(page, /Enlaces de tienda/);
   assert.doesNotMatch(page, /outerwear|accessory|Capa|Accesorio/);
+  assert.doesNotMatch(page, /Notas de estilo|Catalogo de tres piezas/);
   assert.match(page, /readImages/);
+  assert.match(page, /createImportedGarment/);
   assert.match(page, /productUrl/);
   assert.match(page, /sourceUrl/);
   assert.match(layout, /lang="es"/);
