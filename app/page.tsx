@@ -489,11 +489,11 @@ export default function Home() {
     <main className="app-shell">
       <section className="hero-panel" aria-label="Generador profesional de outfits">
         <div>
-          <p className="eyebrow">Outfit studio</p>
-          <h1>Looks completos sin pensar por la manana.</h1>
+          <p className="eyebrow">Outfit engine</p>
+          <h1>Tu armario convertido en sistema.</h1>
           <p>
-            Un sistema simple y cuidado: parte de arriba, parte de abajo y
-            zapatos. Nada mas. La combinacion correcta, con tu propia ropa.
+            Importa prendas con fotos o enlaces. El motor cruza arriba, abajo y
+            zapatos para proponerte looks limpios, modernos y sin friccion.
           </p>
         </div>
         <div className="studio-stats" aria-label="Estado del armario">
@@ -551,7 +551,7 @@ export default function Home() {
       <section className="look-section" aria-label="Look seleccionado">
         <div className="section-heading">
           <div>
-            <p className="eyebrow">Look recomendado</p>
+          <p className="eyebrow">Output</p>
             <h2>{selectedOutfit?.title ?? "Anade mas prendas"}</h2>
           </div>
           {selectedOutfit && <span className="score-pill">{Math.round(selectedOutfit.score)} pts</span>}
@@ -637,8 +637,8 @@ export default function Home() {
       <section className="workspace-grid" aria-label="Anadir prendas y referencias">
         <div className="tool-panel">
           <div className="section-heading compact">
-            <p className="eyebrow">Importar prendas</p>
-            <h2>Fotos o enlaces. Sin fichas manuales.</h2>
+            <p className="eyebrow">Input</p>
+            <h2>Importa por fotos o links.</h2>
           </div>
           <form className="import-form" onSubmit={importGarments}>
             {allowedCategories.map((category) => (
@@ -716,8 +716,8 @@ export default function Home() {
 
         <div className="tool-panel">
           <div className="section-heading compact">
-            <p className="eyebrow">Referencias</p>
-            <h2>Direccion estetica.</h2>
+            <p className="eyebrow">Moodboard</p>
+            <h2>Referencias visuales.</h2>
           </div>
           <form className="stacked-form" onSubmit={addReference}>
             <label>
@@ -814,7 +814,7 @@ export default function Home() {
       <section className="closet-section" aria-label="Inventario">
         <div className="section-heading">
           <div>
-            <p className="eyebrow">Armario</p>
+            <p className="eyebrow">Database</p>
             <h2>{wardrobe.length} prendas en rotacion.</h2>
           </div>
         </div>
