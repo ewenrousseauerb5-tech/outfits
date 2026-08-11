@@ -2,17 +2,17 @@
 
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
 
-type Category = "top" | "bottom" | "shoes" | "outerwear" | "accessory";
-type Occasion = "work" | "casual" | "date" | "travel" | "evening";
-type Weather = "warm" | "mild" | "cold" | "rain";
-type Energy = "quiet" | "sharp" | "creative";
+type Category = "top" | "bottom" | "shoes";
+type Occasion = "office" | "casual" | "dinner" | "travel";
+type Intent = "minimal" | "smart" | "relaxed";
+type Season = "all" | "warm" | "mild" | "cold";
 
 type Garment = {
   id: string;
   name: string;
   category: Category;
   color: string;
-  season: Weather | "all";
+  season: Season;
   formality: number;
   image?: string;
   images?: string[];
@@ -24,7 +24,7 @@ type Garment = {
 type Reference = {
   id: string;
   title: string;
-  mood: Energy;
+  mood: Intent;
   image?: string;
   images?: string[];
   sourceUrl?: string;
@@ -33,9 +33,12 @@ type Reference = {
 type Outfit = {
   id: string;
   title: string;
-  pieces: Garment[];
-  reason: string;
+  pieces: Record<Category, Garment>;
+  score: number;
+  summary: string;
 };
+
+const allowedCategories: Category[] = ["top", "bottom", "shoes"];
 
 const starterWardrobe: Garment[] = [
   {
@@ -46,17 +49,17 @@ const starterWardrobe: Garment[] = [
     season: "all",
     formality: 4,
     favorite: true,
-    notes: "Base limpia para dias de oficina.",
+    notes: "Base limpia para oficina, cenas y looks pulidos.",
   },
   {
     id: "g-2",
-    name: "Camiseta negra pesada",
+    name: "Camiseta negra premium",
     category: "top",
     color: "black",
     season: "all",
     formality: 2,
     favorite: false,
-    notes: "Funciona con chaquetas y zapatillas.",
+    notes: "Funciona para looks simples con buena silueta.",
   },
   {
     id: "g-3",
@@ -66,7 +69,7 @@ const starterWardrobe: Garment[] = [
     season: "all",
     formality: 4,
     favorite: true,
-    notes: "Mas elegante que vaquero, menos rigido que traje.",
+    notes: "Mas elegante que un vaquero, sin ser traje.",
   },
   {
     id: "g-4",
@@ -76,7 +79,7 @@ const starterWardrobe: Garment[] = [
     season: "all",
     formality: 2,
     favorite: false,
-    notes: "Para looks relajados de fin de semana.",
+    notes: "Para dias relajados y combinaciones limpias.",
   },
   {
     id: "g-5",
@@ -86,7 +89,7 @@ const starterWardrobe: Garment[] = [
     season: "all",
     formality: 4,
     favorite: true,
-    notes: "Levantan casi cualquier combinacion.",
+    notes: "Suben el nivel sin esfuerzo.",
   },
   {
     id: "g-6",
@@ -96,98 +99,72 @@ const starterWardrobe: Garment[] = [
     season: "all",
     formality: 2,
     favorite: false,
-    notes: "Comodas para dias largos.",
-  },
-  {
-    id: "g-7",
-    name: "Sobrecamisa verde oliva",
-    category: "outerwear",
-    color: "olive",
-    season: "mild",
-    formality: 2,
-    favorite: true,
-    notes: "Capa facil cuando hace fresco.",
-  },
-  {
-    id: "g-8",
-    name: "Abrigo gris estructurado",
-    category: "outerwear",
-    color: "gray",
-    season: "cold",
-    formality: 5,
-    favorite: false,
-    notes: "Para dias frios y reuniones.",
-  },
-  {
-    id: "g-9",
-    name: "Cinturon negro",
-    category: "accessory",
-    color: "black",
-    season: "all",
-    formality: 3,
-    favorite: false,
-    notes: "Cierra bien looks sobrios.",
+    notes: "Comodas, neutras y faciles.",
   },
 ];
 
 const starterReferences: Reference[] = [
-  { id: "r-1", title: "Minimal limpio", mood: "quiet" },
-  { id: "r-2", title: "Oficina con caracter", mood: "sharp" },
-  { id: "r-3", title: "Casual interesante", mood: "creative" },
+  { id: "r-1", title: "Minimal limpio", mood: "minimal" },
+  { id: "r-2", title: "Smart casual europeo", mood: "smart" },
+  { id: "r-3", title: "Relaxed premium", mood: "relaxed" },
 ];
 
 const categoryLabels: Record<Category, string> = {
   top: "Parte de arriba",
-  bottom: "Pantalon",
+  bottom: "Parte de abajo",
   shoes: "Zapatos",
-  outerwear: "Capa",
-  accessory: "Accesorio",
+};
+
+const categoryShortLabels: Record<Category, string> = {
+  top: "Arriba",
+  bottom: "Abajo",
+  shoes: "Zapatos",
 };
 
 const occasionLabels: Record<Occasion, string> = {
-  work: "Trabajo",
+  office: "Oficina",
   casual: "Casual",
-  date: "Cita",
+  dinner: "Cena",
   travel: "Viaje",
-  evening: "Noche",
 };
 
-const weatherLabels: Record<Weather, string> = {
+const intentLabels: Record<Intent, string> = {
+  minimal: "Minimal",
+  smart: "Elegante",
+  relaxed: "Relajado",
+};
+
+const seasonLabels: Record<Season, string> = {
+  all: "Todo el ano",
   warm: "Calor",
   mild: "Templado",
   cold: "Frio",
-  rain: "Lluvia",
-};
-
-const energyLabels: Record<Energy, string> = {
-  quiet: "Sin pensar",
-  sharp: "Pulido",
-  creative: "Con gracia",
 };
 
 const targetFormality: Record<Occasion, number> = {
-  work: 4,
+  office: 4,
   casual: 2,
-  date: 3,
+  dinner: 4,
   travel: 2,
-  evening: 4,
 };
 
 const compatibleColors: Record<string, string[]> = {
-  black: ["white", "gray", "blue", "olive", "brown"],
-  white: ["black", "navy", "blue", "olive", "brown", "gray"],
-  navy: ["white", "gray", "brown", "olive"],
-  blue: ["white", "black", "gray", "brown"],
-  gray: ["white", "black", "navy", "olive"],
-  brown: ["white", "navy", "blue", "olive"],
-  olive: ["white", "black", "navy", "gray", "brown"],
+  black: ["white", "gray", "blue", "navy", "brown"],
+  white: ["black", "navy", "blue", "gray", "brown", "olive"],
+  navy: ["white", "gray", "brown", "blue"],
+  blue: ["white", "black", "gray", "brown", "navy"],
+  gray: ["white", "black", "navy", "blue"],
+  brown: ["white", "navy", "blue", "black", "olive"],
+  olive: ["white", "black", "navy", "brown"],
 };
+
+const colorOptions = ["white", "black", "navy", "blue", "gray", "brown", "olive"];
 
 const emptyGarment = {
   name: "",
   category: "top" as Category,
   color: "white",
-  season: "all" as Garment["season"],
+  season: "all" as Season,
   formality: 3,
   image: "",
   images: [] as string[],
@@ -195,24 +172,27 @@ const emptyGarment = {
   notes: "",
 };
 
-function scoreGarment(
-  garment: Garment,
-  occasion: Occasion,
-  weather: Weather,
-  energy: Energy,
-) {
-  const formalityGap = Math.abs(garment.formality - targetFormality[occasion]);
-  let score = 8 - formalityGap * 1.4;
+function normalizeGarments(value: unknown): Garment[] {
+  if (!Array.isArray(value)) return starterWardrobe;
 
-  if (garment.favorite) score += 1.3;
-  if (garment.season === weather || garment.season === "all") score += 1.2;
-  if (weather === "warm" && garment.category === "outerwear") score -= 3;
-  if (weather === "cold" && garment.category === "outerwear") score += 2;
-  if (energy === "quiet" && ["white", "black", "navy", "gray"].includes(garment.color)) score += 1;
-  if (energy === "creative" && ["olive", "brown", "blue"].includes(garment.color)) score += 1.2;
-  if (energy === "sharp" && garment.formality >= 4) score += 1.4;
+  const garments = value
+    .filter((item): item is Partial<Garment> => Boolean(item && typeof item === "object"))
+    .filter((item) => allowedCategories.includes(item.category as Category))
+    .map((item) => ({
+      id: item.id ?? `g-${crypto.randomUUID()}`,
+      name: item.name ?? "Prenda sin nombre",
+      category: item.category as Category,
+      color: item.color ?? "white",
+      season: item.season ?? "all",
+      formality: item.formality ?? 3,
+      image: item.image,
+      images: item.images?.length ? item.images : item.image ? [item.image] : [],
+      productUrl: item.productUrl ?? "",
+      favorite: Boolean(item.favorite),
+      notes: item.notes ?? "",
+    }));
 
-  return score;
+  return garments.length ? garments : starterWardrobe;
 }
 
 function getImages(item: { image?: string; images?: string[] }) {
@@ -242,76 +222,75 @@ function readImages(
   ).then(callback);
 }
 
-function buildOutfits(
-  wardrobe: Garment[],
-  occasion: Occasion,
-  weather: Weather,
-  energy: Energy,
-) {
-  const byCategory = (category: Category) =>
+function scoreGarment(garment: Garment, occasion: Occasion, season: Season, intent: Intent) {
+  const formalityGap = Math.abs(garment.formality - targetFormality[occasion]);
+  let score = 10 - formalityGap * 1.6;
+
+  if (garment.favorite) score += 1.2;
+  if (garment.season === season || garment.season === "all" || season === "all") score += 1;
+  if (intent === "minimal" && ["white", "black", "navy", "gray"].includes(garment.color)) score += 1.3;
+  if (intent === "smart" && garment.formality >= 4) score += 1.4;
+  if (intent === "relaxed" && garment.formality <= 3) score += 1.2;
+
+  return score;
+}
+
+function colorHarmony(pieces: Garment[]) {
+  return pieces.reduce((total, piece, index) => {
+    const previous = pieces[index - 1];
+    if (!previous) return total;
+    return total + (compatibleColors[previous.color]?.includes(piece.color) ? 1.5 : -0.5);
+  }, 0);
+}
+
+function buildOutfits(wardrobe: Garment[], occasion: Occasion, season: Season, intent: Intent) {
+  const sorted = (category: Category) =>
     wardrobe
       .filter((item) => item.category === category)
       .sort(
         (a, b) =>
-          scoreGarment(b, occasion, weather, energy) -
-          scoreGarment(a, occasion, weather, energy),
-      );
+          scoreGarment(b, occasion, season, intent) -
+          scoreGarment(a, occasion, season, intent),
+      )
+      .slice(0, 6);
 
-  const tops = byCategory("top");
-  const bottoms = byCategory("bottom");
-  const shoes = byCategory("shoes");
-  const layers = byCategory("outerwear");
-  const accessories = byCategory("accessory");
+  const tops = sorted("top");
+  const bottoms = sorted("bottom");
+  const shoes = sorted("shoes");
+  const outfits: Outfit[] = [];
 
-  const options: Outfit[] = [];
-
-  tops.slice(0, 5).forEach((top) => {
-    bottoms.slice(0, 5).forEach((bottom) => {
-      shoes.slice(0, 4).forEach((shoe) => {
-        const layer =
-          weather === "warm"
-            ? undefined
-            : layers.find((item) => item.season === weather) ?? layers[0];
-        const accessory = accessories[0];
-        const pieces = [top, bottom, shoe, layer, accessory].filter(Boolean) as Garment[];
-        const colorScore = pieces.reduce((total, piece, index) => {
-          const previous = pieces[index - 1];
-          if (!previous) return total;
-          const match = compatibleColors[previous.color]?.includes(piece.color);
-          return total + (match ? 1.5 : -0.3);
-        }, 0);
+  tops.forEach((top) => {
+    bottoms.forEach((bottom) => {
+      shoes.forEach((shoe) => {
+        const pieces = [top, bottom, shoe];
         const score =
-          pieces.reduce(
-            (total, piece) => total + scoreGarment(piece, occasion, weather, energy),
-            0,
-          ) + colorScore;
+          pieces.reduce((total, item) => total + scoreGarment(item, occasion, season, intent), 0) +
+          colorHarmony(pieces);
 
-        options.push({
-          id: `${top.id}-${bottom.id}-${shoe.id}-${layer?.id ?? "none"}-${accessory?.id ?? "none"}`,
-          title: `${occasionLabels[occasion]} ${energyLabels[energy].toLowerCase()}`,
-          pieces,
-          reason: `Equilibra ${top.color}, ${bottom.color} y ${shoe.color}; encaja con ${weatherLabels[weather].toLowerCase()} y nivel ${targetFormality[occasion]}/5.`,
+        outfits.push({
+          id: `${top.id}-${bottom.id}-${shoe.id}-${score.toFixed(2)}`,
+          title: `${occasionLabels[occasion]} ${intentLabels[intent].toLowerCase()}`,
+          pieces: { top, bottom, shoes: shoe },
+          score,
+          summary: `${top.color}, ${bottom.color} y ${shoe.color}; una combinacion de tres piezas con nivel ${targetFormality[occasion]}/5.`,
         });
-        options[options.length - 1].id += `-${score.toFixed(2)}`;
       });
     });
   });
 
-  return options
-    .sort((a, b) => Number(b.id.split("-").at(-1)) - Number(a.id.split("-").at(-1)))
-    .slice(0, 3);
+  return outfits.sort((a, b) => b.score - a.score).slice(0, 4);
 }
 
 export default function Home() {
   const [wardrobe, setWardrobe] = useState<Garment[]>(starterWardrobe);
   const [references, setReferences] = useState<Reference[]>(starterReferences);
-  const [occasion, setOccasion] = useState<Occasion>("work");
-  const [weather, setWeather] = useState<Weather>("mild");
-  const [energy, setEnergy] = useState<Energy>("quiet");
+  const [occasion, setOccasion] = useState<Occasion>("office");
+  const [season, setSeason] = useState<Season>("all");
+  const [intent, setIntent] = useState<Intent>("minimal");
   const [form, setForm] = useState(emptyGarment);
   const [referenceForm, setReferenceForm] = useState({
     title: "",
-    mood: "quiet" as Energy,
+    mood: "minimal" as Intent,
     image: "",
     images: [] as string[],
     sourceUrl: "",
@@ -323,7 +302,7 @@ export default function Home() {
     queueMicrotask(() => {
       const savedWardrobe = window.localStorage.getItem("outfits-wardrobe");
       const savedReferences = window.localStorage.getItem("outfits-references");
-      if (savedWardrobe) setWardrobe(JSON.parse(savedWardrobe));
+      if (savedWardrobe) setWardrobe(normalizeGarments(JSON.parse(savedWardrobe)));
       if (savedReferences) setReferences(JSON.parse(savedReferences));
       setHydrated(true);
     });
@@ -338,8 +317,8 @@ export default function Home() {
   }, [hydrated, references]);
 
   const outfits = useMemo(
-    () => buildOutfits(wardrobe, occasion, weather, energy),
-    [wardrobe, occasion, weather, energy],
+    () => buildOutfits(wardrobe, occasion, season, intent),
+    [wardrobe, occasion, season, intent],
   );
 
   const activeOutfitIndex = outfits.length
@@ -349,10 +328,10 @@ export default function Home() {
 
   const counts = useMemo(
     () =>
-      wardrobe.reduce(
-        (acc, garment) => ({
+      allowedCategories.reduce(
+        (acc, category) => ({
           ...acc,
-          [garment.category]: (acc[garment.category] ?? 0) + 1,
+          [category]: wardrobe.filter((item) => item.category === category).length,
         }),
         {} as Record<Category, number>,
       ),
@@ -399,7 +378,7 @@ export default function Home() {
       },
       ...items,
     ]);
-    setReferenceForm({ title: "", mood: "quiet", image: "", images: [], sourceUrl: "" });
+    setReferenceForm({ title: "", mood: "minimal", image: "", images: [], sourceUrl: "" });
   }
 
   function removeGarment(id: string) {
@@ -416,131 +395,137 @@ export default function Home() {
 
   return (
     <main className="app-shell">
-      <section className="command-center" aria-label="Generador de outfits">
-        <div className="intro">
-          <p className="eyebrow">Armario inteligente</p>
-          <h1>Outfits bonitos con la ropa que ya tienes.</h1>
+      <section className="hero-panel" aria-label="Generador profesional de outfits">
+        <div>
+          <p className="eyebrow">Outfit studio</p>
+          <h1>Looks completos sin pensar por la manana.</h1>
           <p>
-            Sube fotos de prendas y referencias; la app cruza ocasion, clima y
-            energia del dia para darte combinaciones listas antes del cafe.
+            Un sistema simple y cuidado: parte de arriba, parte de abajo y
+            zapatos. Nada mas. La combinacion correcta, con tu propia ropa.
           </p>
         </div>
-
-        <div className="planner-panel">
-          <div className="control-group">
-            <label htmlFor="occasion">Ocasion</label>
-            <select
-              id="occasion"
-              value={occasion}
-              onChange={(event) => setOccasion(event.target.value as Occasion)}
-            >
-              {Object.entries(occasionLabels).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="control-group">
-            <label htmlFor="weather">Clima</label>
-            <select
-              id="weather"
-              value={weather}
-              onChange={(event) => setWeather(event.target.value as Weather)}
-            >
-              {Object.entries(weatherLabels).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="control-group">
-            <label htmlFor="energy">Modo</label>
-            <select
-              id="energy"
-              value={energy}
-              onChange={(event) => setEnergy(event.target.value as Energy)}
-            >
-              {Object.entries(energyLabels).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </div>
+        <div className="studio-stats" aria-label="Estado del armario">
+          {allowedCategories.map((category) => (
+            <div key={category}>
+              <strong>{counts[category] ?? 0}</strong>
+              <span>{categoryShortLabels[category]}</span>
+            </div>
+          ))}
         </div>
       </section>
 
-      <section className="outfit-strip" aria-label="Look seleccionado">
-        <div className="section-heading">
-          <p className="eyebrow">Propuestas de hoy</p>
-          <h2>Maniqui y prendas puestas.</h2>
-        </div>
-        <div className="look-studio">
-          <div className="mannequin-stage" aria-label="Maniqui del outfit">
-            <div className="mannequin">
-              <div className="mannequin-head" />
-              <div className="mannequin-neck" />
-              <div className="mannequin-torso" />
-              <div className="mannequin-arm left" />
-              <div className="mannequin-arm right" />
-              <div className="mannequin-leg left" />
-              <div className="mannequin-leg right" />
-              {selectedOutfit?.pieces.map((piece) => {
-                const image = getPrimaryImage(piece);
-                return (
-                  <div
-                    className={`worn-piece worn-${piece.category}`}
-                    key={`${selectedOutfit.id}-${piece.id}`}
-                  >
-                    {image ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={image} alt={piece.name} />
-                    ) : (
-                      <span>{piece.name}</span>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+      <section className="planner-bar" aria-label="Preferencias del look">
+        <label>
+          Ocasion
+          <select
+            value={occasion}
+            onChange={(event) => setOccasion(event.target.value as Occasion)}
+          >
+            {Object.entries(occasionLabels).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Temporada
+          <select
+            value={season}
+            onChange={(event) => setSeason(event.target.value as Season)}
+          >
+            {Object.entries(seasonLabels).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Direccion
+          <select
+            value={intent}
+            onChange={(event) => setIntent(event.target.value as Intent)}
+          >
+            {Object.entries(intentLabels).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+      </section>
 
-          <aside className="worn-panel" aria-label="Prendas del outfit">
-            <div className="outfit-card-header">
-              <span>Look seleccionado</span>
-              <strong>{selectedOutfit?.title}</strong>
-            </div>
-            <div className="piece-row">
-              {selectedOutfit?.pieces.map((piece) => {
+      <section className="look-section" aria-label="Look seleccionado">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">Look recomendado</p>
+            <h2>{selectedOutfit?.title ?? "Anade mas prendas"}</h2>
+          </div>
+          {selectedOutfit && <span className="score-pill">{Math.round(selectedOutfit.score)} pts</span>}
+        </div>
+
+        <div className="look-layout">
+          <div className="look-board" aria-label="Visual del outfit">
+            {selectedOutfit ? (
+              allowedCategories.map((category) => {
+                const piece = selectedOutfit.pieces[category];
                 const image = getPrimaryImage(piece);
                 return (
-                  <div className="piece-chip detailed" key={piece.id}>
-                    <div className="piece-thumb">
+                  <article className={`look-slot ${category}`} key={category}>
+                    <span>{categoryShortLabels[category]}</span>
+                    <div>
                       {image ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={image} alt={piece.name} />
                       ) : (
-                        <span>{piece.name.slice(0, 2).toUpperCase()}</span>
+                        <strong>{piece.name}</strong>
                       )}
                     </div>
-                    <div>
-                      <p>{piece.name}</p>
-                      <small>
-                        {categoryLabels[piece.category]} · {piece.color} · nivel{" "}
-                        {piece.formality}/5
-                      </small>
-                      {piece.productUrl && (
-                        <a href={piece.productUrl} target="_blank" rel="noreferrer">
-                          Ver prenda
-                        </a>
-                      )}
-                    </div>
-                  </div>
+                  </article>
                 );
-              })}
+              })
+            ) : (
+              <div className="empty-state">
+                <strong>Faltan piezas</strong>
+                <p>Anade al menos una prenda en cada categoria.</p>
+              </div>
+            )}
+          </div>
+
+          <aside className="look-details" aria-label="Prendas del look">
+            <div className="piece-list">
+              {selectedOutfit &&
+                allowedCategories.map((category) => {
+                  const piece = selectedOutfit.pieces[category];
+                  const image = getPrimaryImage(piece);
+                  return (
+                    <article className="piece-card" key={piece.id}>
+                      <div className="piece-thumb">
+                        {image ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={image} alt={piece.name} />
+                        ) : (
+                          <span>{piece.color}</span>
+                        )}
+                      </div>
+                      <div>
+                        <p>{categoryLabels[piece.category]}</p>
+                        <h3>{piece.name}</h3>
+                        <small>
+                          {piece.color} · formalidad {piece.formality}/5
+                        </small>
+                        {piece.productUrl && (
+                          <a href={piece.productUrl} target="_blank" rel="noreferrer">
+                            Ver fuente
+                          </a>
+                        )}
+                      </div>
+                    </article>
+                  );
+                })}
             </div>
-            {selectedOutfit && <p className="reason">{selectedOutfit.reason}</p>}
+            {selectedOutfit && <p className="look-summary">{selectedOutfit.summary}</p>}
             <div className="outfit-switcher" aria-label="Cambiar propuesta">
               {outfits.map((outfit, index) => (
                 <button
@@ -549,7 +534,7 @@ export default function Home() {
                   type="button"
                   onClick={() => setSelectedOutfitIndex(index)}
                 >
-                  Opcion {index + 1}
+                  Look {index + 1}
                 </button>
               ))}
             </div>
@@ -557,34 +542,34 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="workspace-grid" aria-label="Armario y referencias">
+      <section className="workspace-grid" aria-label="Anadir prendas y referencias">
         <div className="tool-panel">
           <div className="section-heading compact">
-            <p className="eyebrow">Anadir prenda</p>
-            <h2>Tu armario real.</h2>
+            <p className="eyebrow">Nueva prenda</p>
+            <h2>Catalogo de tres piezas.</h2>
           </div>
           <form className="stacked-form" onSubmit={addGarment}>
             <label>
               Nombre
               <input
                 required
-                placeholder="Ej. jersey gris merino"
+                placeholder="Ej. camisa azul claro"
                 value={form.name}
                 onChange={(event) => setForm({ ...form, name: event.target.value })}
               />
             </label>
             <div className="form-grid">
               <label>
-                Tipo
+                Categoria
                 <select
                   value={form.category}
                   onChange={(event) =>
                     setForm({ ...form, category: event.target.value as Category })
                   }
                 >
-                  {Object.entries(categoryLabels).map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
+                  {allowedCategories.map((category) => (
+                    <option key={category} value={category}>
+                      {categoryLabels[category]}
                     </option>
                   ))}
                 </select>
@@ -595,13 +580,11 @@ export default function Home() {
                   value={form.color}
                   onChange={(event) => setForm({ ...form, color: event.target.value })}
                 >
-                  {["white", "black", "navy", "blue", "gray", "brown", "olive"].map(
-                    (color) => (
-                      <option key={color} value={color}>
-                        {color}
-                      </option>
-                    ),
-                  )}
+                  {colorOptions.map((color) => (
+                    <option key={color} value={color}>
+                      {color}
+                    </option>
+                  ))}
                 </select>
               </label>
               <label>
@@ -609,11 +592,10 @@ export default function Home() {
                 <select
                   value={form.season}
                   onChange={(event) =>
-                    setForm({ ...form, season: event.target.value as Garment["season"] })
+                    setForm({ ...form, season: event.target.value as Season })
                   }
                 >
-                  <option value="all">Todo el ano</option>
-                  {Object.entries(weatherLabels).map(([value, label]) => (
+                  {Object.entries(seasonLabels).map(([value, label]) => (
                     <option key={value} value={value}>
                       {label}
                     </option>
@@ -634,7 +616,7 @@ export default function Home() {
               </label>
             </div>
             <label>
-              Fotos de la prenda
+              Fotos
               <input
                 type="file"
                 accept="image/*"
@@ -659,26 +641,24 @@ export default function Home() {
               </div>
             )}
             <label>
-              Enlace de la prenda
+              Enlace de producto
               <input
                 inputMode="url"
                 placeholder="https://..."
                 value={form.productUrl}
-                onChange={(event) =>
-                  setForm({ ...form, productUrl: event.target.value })
-                }
+                onChange={(event) => setForm({ ...form, productUrl: event.target.value })}
               />
             </label>
             <label>
-              Notas
+              Notas de estilo
               <textarea
-                placeholder="Como queda, con que combina, cuando evitarla..."
+                placeholder="Corte, ajuste, cuando usarla, combinaciones que funcionan..."
                 value={form.notes}
                 onChange={(event) => setForm({ ...form, notes: event.target.value })}
               />
             </label>
             <button className="primary-action" type="submit">
-              Anadir prenda
+              Anadir al armario
             </button>
           </form>
         </div>
@@ -686,13 +666,13 @@ export default function Home() {
         <div className="tool-panel">
           <div className="section-heading compact">
             <p className="eyebrow">Referencias</p>
-            <h2>El gusto que quieres copiar.</h2>
+            <h2>Direccion estetica.</h2>
           </div>
           <form className="stacked-form" onSubmit={addReference}>
             <label>
               Titulo
               <input
-                placeholder="Ej. verano italiano sobrio"
+                placeholder="Ej. smart casual limpio"
                 value={referenceForm.title}
                 onChange={(event) =>
                   setReferenceForm({ ...referenceForm, title: event.target.value })
@@ -704,10 +684,10 @@ export default function Home() {
               <select
                 value={referenceForm.mood}
                 onChange={(event) =>
-                  setReferenceForm({ ...referenceForm, mood: event.target.value as Energy })
+                  setReferenceForm({ ...referenceForm, mood: event.target.value as Intent })
                 }
               >
-                {Object.entries(energyLabels).map(([value, label]) => (
+                {Object.entries(intentLabels).map(([value, label]) => (
                   <option key={value} value={value}>
                     {label}
                   </option>
@@ -715,7 +695,7 @@ export default function Home() {
               </select>
             </label>
             <label>
-              Fotos o captura de referencia
+              Fotos o captura
               <input
                 type="file"
                 accept="image/*"
@@ -731,19 +711,15 @@ export default function Home() {
               <div className="upload-preview" aria-label="Referencias cargadas">
                 {referenceForm.images.map((image, index) => (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={image}
-                    alt={`Referencia ${index + 1}`}
-                    key={`${image}-${index}`}
-                  />
+                  <img src={image} alt={`Referencia ${index + 1}`} key={`${image}-${index}`} />
                 ))}
               </div>
             )}
             <label>
-              Enlace de referencia
+              Enlace
               <input
                 inputMode="url"
-                placeholder="Pinterest, Instagram, tienda o articulo"
+                placeholder="Pinterest, tienda, articulo o lookbook"
                 value={referenceForm.sourceUrl}
                 onChange={(event) =>
                   setReferenceForm({ ...referenceForm, sourceUrl: event.target.value })
@@ -765,12 +741,12 @@ export default function Home() {
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={primaryImage} alt={reference.title} />
                     ) : (
-                      <span>{energyLabels[reference.mood]}</span>
+                      <span>{intentLabels[reference.mood]}</span>
                     )}
                   </div>
                   <div>
                     <strong>{reference.title}</strong>
-                    <p>{energyLabels[reference.mood]}</p>
+                    <p>{intentLabels[reference.mood]}</p>
                     {reference.sourceUrl && (
                       <a href={reference.sourceUrl} target="_blank" rel="noreferrer">
                         Abrir referencia
@@ -786,15 +762,10 @@ export default function Home() {
 
       <section className="closet-section" aria-label="Inventario">
         <div className="section-heading">
-          <p className="eyebrow">Inventario</p>
-          <h2>{wardrobe.length} prendas listas para combinar.</h2>
-        </div>
-        <div className="category-meter" aria-label="Categorias disponibles">
-          {Object.entries(categoryLabels).map(([category, label]) => (
-            <span key={category}>
-              {label}: {counts[category as Category] ?? 0}
-            </span>
-          ))}
+          <div>
+            <p className="eyebrow">Armario</p>
+            <h2>{wardrobe.length} prendas en rotacion.</h2>
+          </div>
         </div>
         <div className="closet-grid">
           {wardrobe.map((garment) => {
@@ -811,16 +782,15 @@ export default function Home() {
                   )}
                 </div>
                 <div className="garment-info">
-                  <div>
-                    <p>{categoryLabels[garment.category]}</p>
-                    <h3>{garment.name}</h3>
-                  </div>
+                  <p>{categoryLabels[garment.category]}</p>
+                  <h3>{garment.name}</h3>
                   <small>
                     {garment.color} · nivel {garment.formality}/5
                   </small>
                   {garment.notes && <p className="notes">{garment.notes}</p>}
                   <div className="garment-meta">
                     {imageCount > 1 && <span>{imageCount} fotos</span>}
+                    {garment.favorite && <span>Favorita</span>}
                     {garment.productUrl && (
                       <a href={garment.productUrl} target="_blank" rel="noreferrer">
                         Fuente

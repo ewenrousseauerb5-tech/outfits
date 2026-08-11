@@ -13,10 +13,13 @@ test("the outfit app source contains the primary product experience", async () =
     readFile(new URL("../package.json", import.meta.url), "utf8"),
   ]);
 
-  assert.match(page, /Outfits bonitos con la ropa que ya tienes/);
-  assert.match(page, /Maniqui y prendas puestas/);
-  assert.match(page, /Fotos de la prenda/);
-  assert.match(page, /Enlace de la prenda/);
+  assert.match(page, /Looks completos sin pensar por la manana/);
+  assert.match(page, /Parte de arriba/);
+  assert.match(page, /Parte de abajo/);
+  assert.match(page, /Zapatos/);
+  assert.match(page, /Look recomendado/);
+  assert.match(page, /Enlace de producto/);
+  assert.doesNotMatch(page, /outerwear|accessory|Capa|Accesorio/);
   assert.match(page, /readImages/);
   assert.match(page, /productUrl/);
   assert.match(page, /sourceUrl/);
