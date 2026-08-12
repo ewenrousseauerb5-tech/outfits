@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
+const MAX_IMAGE_CANDIDATES = 12;
 
 function cleanText(value?: string | null) {
   return value
@@ -27,6 +28,23 @@ function pickMeta(html: string, names: string[]) {
   return undefined;
 }
 
+function pickAllMeta(html: string, names: string[]) {
+  const values: string[] = [];
+  for (const name of names) {
+    const pattern = new RegExp(
+      `<meta[^>]+(?:property|name)=["']${name}["'][^>]+content=["']([^"']+)["'][^>]*>|<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["']${name}["'][^>]*>`,
+      "gi",
+    );
+
+    for (const match of html.matchAll(pattern)) {
+      const value = cleanText(match[1] ?? match[2]);
+      if (value) values.push(value);
+    }
+  }
+
+  return values;
+}
+
 function pickTitle(html: string) {
   return cleanText(
     pickMeta(html, ["og:title", "twitter:title"])
@@ -43,6 +61,18 @@ function normalizeImage(value: unknown) {
   }
 
   return undefined;
+}
+
+function normalizeImages(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => {
+      const image = normalizeImage(item);
+      return image ? [image] : [];
+    });
+  }
+
+  const image = normalizeImage(value);
+  return image ? [image] : [];
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -82,36 +112,116 @@ function readJsonLd(html: string) {
 
 function absolutize(url: string, baseUrl: string) {
   try {
-    return new URL(url, baseUrl).toString();
+    const normalized = url
+      .replace(/\\\//g, "/")
+      .replace(/&amp;/g, "&")
+      .trim();
+    if (!normalized || normalized.startsWith("data:")) return normalized;
+    if (normalized.startsWith("//")) return `https:${normalized}`;
+    return new URL(normalized, baseUrl).toString();
   } catch {
     return undefined;
   }
 }
 
-async function imageToDataUrl(imageUrl?: string) {
+function srcsetUrls(value: string) {
+  return value
+    .split(",")
+    .map((entry) => entry.trim().split(/\s+/)[0])
+    .filter(Boolean);
+}
+
+function looksLikeProductImage(url: string) {
+  const normalized = url.toLowerCase();
+  if (/logo|icon|sprite|favicon|placeholder|transparent|blank|loader/.test(normalized)) {
+    return false;
+  }
+
+  return (
+    /\.(avif|webp|png|jpe?g|gif|svg)(\?|$)/i.test(normalized)
+    || /image|img|photo|product|media|cdn|static|assets|merce|fotos|images/.test(normalized)
+  );
+}
+
+function extractEmbeddedImageUrls(html: string) {
+  const values: string[] = [];
+  const attrPattern =
+    /<(?:img|source)[^>]+(?:src|data-src|data-original|data-zoom-image|content)=["']([^"']+)["'][^>]*>|<(?:img|source)[^>]+srcset=["']([^"']+)["'][^>]*>/gi;
+
+  for (const match of html.matchAll(attrPattern)) {
+    const direct = match[1];
+    const srcset = match[2];
+    if (direct) values.push(direct);
+    if (srcset) values.push(...srcsetUrls(srcset));
+  }
+
+  const scriptUrlPattern =
+    /https?:\\?\/\\?\/[^"'\\\s]+?(?:\.(?:avif|webp|png|jpe?g|gif|svg)(?:\?[^"'\\\s]*)?|\/(?:image|images|media|product|products|fotos?)\/[^"'\\\s]+)/gi;
+  for (const match of html.matchAll(scriptUrlPattern)) {
+    values.push(match[0]);
+  }
+
+  return values;
+}
+
+function uniqueImages(values: Array<string | undefined>, baseUrl: string) {
+  const seen = new Set<string>();
+  return values
+    .flatMap((value) => (value ? [value] : []))
+    .map((value) => absolutize(value, baseUrl))
+    .filter((value): value is string => Boolean(value))
+    .filter(looksLikeProductImage)
+    .filter((value) => {
+      if (seen.has(value)) return false;
+      seen.add(value);
+      return true;
+    })
+    .slice(0, MAX_IMAGE_CANDIDATES);
+}
+
+async function imageToDataUrl(imageUrl: string | undefined, referer: string) {
   if (!imageUrl) return undefined;
+  if (imageUrl.startsWith("data:")) return imageUrl;
 
   try {
     const response = await fetch(imageUrl, {
       headers: {
         accept: "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+        referer,
         "user-agent":
           "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121 Safari/537.36",
       },
     });
-    if (!response.ok) return imageUrl;
+    if (!response.ok) return undefined;
 
     const contentType = response.headers.get("content-type") ?? "image/jpeg";
-    if (!contentType.startsWith("image/")) return imageUrl;
+    if (!contentType.startsWith("image/")) return undefined;
 
     const bytes = await response.arrayBuffer();
-    if (bytes.byteLength > MAX_IMAGE_BYTES) return imageUrl;
+    if (bytes.byteLength > MAX_IMAGE_BYTES) return undefined;
 
     const base64 = Buffer.from(bytes).toString("base64");
     return `data:${contentType};base64,${base64}`;
   } catch {
-    return imageUrl;
+    return undefined;
   }
+}
+
+async function resolveImages(candidates: string[], referer: string) {
+  const resolved: string[] = [];
+
+  for (const candidate of candidates) {
+    const dataUrl = await imageToDataUrl(candidate, referer);
+    if (dataUrl) {
+      resolved.push(dataUrl);
+    } else {
+      resolved.push(candidate);
+    }
+
+    if (resolved.some((image) => image.startsWith("data:image"))) break;
+  }
+
+  return resolved.length ? resolved : candidates.slice(0, 1);
 }
 
 export async function POST(request: NextRequest) {
@@ -147,11 +257,23 @@ export async function POST(request: NextRequest) {
 
     const html = await response.text();
     const product = readJsonLd(html);
-    const rawImage =
-      normalizeImage(product?.image)
-      ?? pickMeta(html, ["og:image:secure_url", "og:image", "twitter:image"]);
-    const absoluteImage = rawImage ? absolutize(rawImage, response.url || productUrl.toString()) : undefined;
-    const image = await imageToDataUrl(absoluteImage);
+    const baseUrl = response.url || productUrl.toString();
+    const imageCandidates = uniqueImages(
+      [
+        ...normalizeImages(product?.image),
+        ...pickAllMeta(html, [
+          "og:image:secure_url",
+          "og:image",
+          "twitter:image",
+          "image",
+          "thumbnail",
+        ]),
+        ...extractEmbeddedImageUrls(html),
+      ],
+      baseUrl,
+    );
+    const images = await resolveImages(imageCandidates, baseUrl);
+    const image = images[0];
     const title = cleanText(String(product?.name ?? "")) || pickTitle(html);
     const color = cleanText(String(product?.color ?? ""));
 
@@ -159,9 +281,10 @@ export async function POST(request: NextRequest) {
       ok: true,
       title,
       image,
-      images: image ? [image] : [],
+      images,
       color,
-      imageSource: absoluteImage,
+      imageSource: imageCandidates[0],
+      imageCandidates,
     });
   } catch (error) {
     return NextResponse.json({

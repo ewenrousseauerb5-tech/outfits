@@ -28,6 +28,7 @@ type ProductImport = {
   image?: string;
   images?: string[];
   color?: string;
+  imageCandidates?: string[];
   error?: string;
 };
 
@@ -319,7 +320,7 @@ async function importProductLink(category: Category, source: string, index: numb
     });
 
     const data = (await response.json()) as ProductImport;
-    return createImportedGarment({
+    const garment = createImportedGarment({
       category,
       source,
       index,
@@ -328,6 +329,15 @@ async function importProductLink(category: Category, source: string, index: numb
       image: data.image,
       images: data.images,
     });
+
+    if (!getPrimaryImage(garment) && data.error) {
+      return {
+        ...garment,
+        notes: `Importada desde enlace, pero la tienda bloqueo imagenes: ${data.error}`,
+      };
+    }
+
+    return garment;
   } catch {
     return createImportedGarment({ category, source, index });
   }
@@ -651,7 +661,8 @@ export default function Home() {
       bottom: { images: [], links: "" },
       shoes: { images: [], links: "" },
     });
-    setImportStatus(`${imported.length} prendas importadas.`);
+    const withImages = imported.filter((item) => getPrimaryImage(item)).length;
+    setImportStatus(`${imported.length} prendas importadas · ${withImages} con imagen.`);
   }
 
   function removeGarment(id: string) {

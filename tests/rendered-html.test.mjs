@@ -36,6 +36,9 @@ test("the outfit app source contains the primary product experience", async () =
   assert.match(page, /productUrl/);
   assert.match(packageJson, /"three"/);
   assert.match(importRoute, /og:image/);
+  assert.match(importRoute, /srcset/);
+  assert.match(importRoute, /extractEmbeddedImageUrls/);
+  assert.match(importRoute, /imageCandidates/);
   assert.match(importRoute, /ld\\\+json/);
   assert.match(importRoute, /data:\$\{contentType\};base64/);
   assert.match(layout, /lang="es"/);
