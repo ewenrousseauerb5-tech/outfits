@@ -96,8 +96,7 @@ p {
 .tool-panel,
 .look-board,
 .look-details,
-.garment-card,
-.reference-card {
+.garment-card {
   border: 1px solid var(--line);
   background: var(--panel);
   box-shadow: var(--shadow);
@@ -270,20 +269,14 @@ textarea:focus {
 .look-board,
 .look-details,
 .tool-panel,
-.garment-card,
-.reference-card {
+.garment-card {
   border-radius: 12px;
   box-shadow: none;
 }
 
 .look-board {
-  display: grid;
-  grid-template-areas:
-    "top top"
-    "bottom shoes";
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: minmax(280px, 1.08fr) minmax(220px, 0.92fr);
-  gap: 10px;
+  position: relative;
+  overflow: hidden;
   min-height: 540px;
   padding: 10px;
   background:
@@ -291,64 +284,43 @@ textarea:focus {
     var(--panel);
 }
 
-.look-slot {
-  display: grid;
-  grid-template-rows: auto 1fr;
-  gap: 10px;
-  overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.035);
-  padding: 10px;
-}
-
-.look-slot.top {
-  grid-area: top;
-}
-
-.look-slot.bottom {
-  grid-area: bottom;
-}
-
-.look-slot.shoes {
-  grid-area: shoes;
-}
-
-.look-slot > span {
-  color: var(--muted);
-  font-size: 0.68rem;
-  font-weight: 900;
-  text-transform: uppercase;
-}
-
-.look-slot > div {
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-  min-height: 0;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background:
-    linear-gradient(135deg, rgba(98, 231, 255, 0.1), rgba(122, 167, 255, 0.08)),
-    rgba(5, 7, 10, 0.72);
-  color: var(--text);
-  padding: 18px;
-  text-align: center;
-}
-
-.look-slot img,
 .piece-thumb img,
 .garment-image img,
-.reference-image img,
 .upload-preview img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.look-slot strong {
-  max-width: 260px;
-  font-size: 1.12rem;
+.mannequin-board {
+  display: block;
+}
+
+.mannequin-viewer {
+  width: 100%;
+  height: 100%;
+  min-height: 520px;
+  touch-action: none;
+}
+
+.mannequin-viewer canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.viewer-hint {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(5, 7, 10, 0.72);
+  color: var(--muted);
+  padding: 8px 10px;
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
 }
 
 .empty-state {
@@ -390,8 +362,7 @@ textarea:focus {
 }
 
 .piece-thumb,
-.garment-image,
-.reference-image {
+.garment-image {
   display: grid;
   place-items: center;
   overflow: hidden;
@@ -415,7 +386,6 @@ textarea:focus {
 .piece-card h3,
 .piece-card small,
 .look-summary,
-.reference-card p,
 .notes {
   margin: 0;
 }
@@ -474,6 +444,10 @@ textarea:focus {
   grid-template-columns: minmax(0, 1fr) minmax(0, 0.85fr);
   gap: 14px;
   margin-top: 14px;
+}
+
+.workspace-grid.single {
+  grid-template-columns: 1fr;
 }
 
 .tool-panel {
@@ -576,38 +550,6 @@ textarea:focus {
   border: 1px solid rgba(98, 231, 255, 0.45);
   background: rgba(98, 231, 255, 0.08);
   color: var(--cyan);
-}
-
-.reference-list {
-  display: grid;
-  gap: 10px;
-  margin-top: 16px;
-}
-
-.reference-card {
-  display: grid;
-  grid-template-columns: 76px minmax(0, 1fr);
-  gap: 12px;
-  align-items: center;
-  min-height: 88px;
-  padding: 8px;
-}
-
-.reference-image {
-  width: 64px;
-  height: 72px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  text-align: center;
-}
-
-.reference-card strong {
-  display: block;
-  margin-bottom: 4px;
-}
-
-.reference-card p {
-  color: var(--muted);
 }
 
 .closet-grid {
@@ -734,14 +676,9 @@ textarea:focus {
     display: block;
   }
 
-  .look-board {
-    grid-template-areas:
-      "top"
-      "bottom"
-      "shoes";
-    grid-template-columns: 1fr;
-    grid-template-rows: repeat(3, 210px);
-    min-height: auto;
+  .look-board,
+  .mannequin-viewer {
+    min-height: 430px;
   }
 
   .piece-card {

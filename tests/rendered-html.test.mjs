@@ -21,12 +21,14 @@ test("the outfit app source contains the primary product experience", async () =
   assert.match(page, /Input/);
   assert.match(page, /Importa por fotos o links/);
   assert.match(page, /Enlaces de tienda/);
+  assert.match(page, /MannequinViewer/);
+  assert.match(page, /Maniqui 3D interactivo/);
   assert.doesNotMatch(page, /outerwear|accessory|Capa|Accesorio/);
-  assert.doesNotMatch(page, /Notas de estilo|Catalogo de tres piezas/);
+  assert.doesNotMatch(page, /Notas de estilo|Catalogo de tres piezas|Moodboard|Referencias visuales/);
   assert.match(page, /readImages/);
   assert.match(page, /createImportedGarment/);
   assert.match(page, /productUrl/);
-  assert.match(page, /sourceUrl/);
+  assert.match(packageJson, /"three"/);
   assert.match(layout, /lang="es"/);
   assert.match(packageJson, /"build": "next build --webpack"/);
   assert.doesNotMatch(page, /_sites-preview|SkeletonPreview/);

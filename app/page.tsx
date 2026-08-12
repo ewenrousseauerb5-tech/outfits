@@ -1,6 +1,7 @@
 "use client";
 
-import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import * as THREE from "three";
 
 type Category = "top" | "bottom" | "shoes";
 type Occasion = "office" | "casual" | "dinner" | "travel";
@@ -19,15 +20,6 @@ type Garment = {
   productUrl?: string;
   favorite: boolean;
   notes: string;
-};
-
-type Reference = {
-  id: string;
-  title: string;
-  mood: Intent;
-  image?: string;
-  images?: string[];
-  sourceUrl?: string;
 };
 
 type Outfit = {
@@ -103,12 +95,6 @@ const starterWardrobe: Garment[] = [
   },
 ];
 
-const starterReferences: Reference[] = [
-  { id: "r-1", title: "Minimal limpio", mood: "minimal" },
-  { id: "r-2", title: "Smart casual europeo", mood: "smart" },
-  { id: "r-3", title: "Relaxed premium", mood: "relaxed" },
-];
-
 const categoryLabels: Record<Category, string> = {
   top: "Parte de arriba",
   bottom: "Parte de abajo",
@@ -172,6 +158,16 @@ const colorKeywords: Record<string, string[]> = {
   gray: ["gray", "grey", "gris"],
   brown: ["brown", "marron", "cuero", "camel"],
   olive: ["olive", "oliva", "verde"],
+};
+
+const mannequinColors: Record<string, string> = {
+  white: "#eef4f7",
+  black: "#15191f",
+  navy: "#14243e",
+  blue: "#315f9d",
+  gray: "#7d8792",
+  brown: "#6b4a33",
+  olive: "#56664e",
 };
 
 function normalizeGarments(value: unknown): Garment[] {
@@ -354,9 +350,177 @@ function buildOutfits(wardrobe: Garment[], occasion: Occasion, season: Season, i
   return outfits.sort((a, b) => b.score - a.score).slice(0, 4);
 }
 
+function MannequinViewer({ outfit }: { outfit?: Outfit }) {
+  const mountRef = useRef<HTMLDivElement | null>(null);
+  const outfitRef = useRef<Outfit | undefined>(outfit);
+
+  useEffect(() => {
+    outfitRef.current = outfit;
+  }, [outfit]);
+
+  useEffect(() => {
+    const mount = mountRef.current;
+    if (!mount) return;
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
+    camera.position.set(0, 1.15, 6.2);
+
+    const renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      alpha: false,
+      preserveDrawingBuffer: true,
+    });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setClearColor(0x0b1118, 1);
+    mount.appendChild(renderer.domElement);
+
+    const keyLight = new THREE.DirectionalLight(0xffffff, 3);
+    keyLight.position.set(3, 5, 4);
+    scene.add(keyLight);
+    scene.add(new THREE.AmbientLight(0x9fb7ff, 1.25));
+
+    const rig = new THREE.Group();
+    scene.add(rig);
+
+    const skin = new THREE.MeshStandardMaterial({
+      color: 0xb9c1c7,
+      roughness: 0.72,
+      metalness: 0.05,
+    });
+    const joint = new THREE.MeshStandardMaterial({
+      color: 0xd5dbe0,
+      roughness: 0.7,
+      metalness: 0.04,
+    });
+
+    const topMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.58 });
+    const bottomMaterial = new THREE.MeshStandardMaterial({ color: 0x14243e, roughness: 0.62 });
+    const shoeMaterial = new THREE.MeshStandardMaterial({ color: 0x6b4a33, roughness: 0.48 });
+
+    const addMesh = (
+      geometry: THREE.BufferGeometry,
+      material: THREE.Material,
+      position: [number, number, number],
+      scale: [number, number, number] = [1, 1, 1],
+    ) => {
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.position.set(...position);
+      mesh.scale.set(...scale);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      rig.add(mesh);
+      return mesh;
+    };
+
+    addMesh(new THREE.SphereGeometry(0.38, 36, 24), skin, [0, 2.38, 0], [0.86, 1.08, 0.78]);
+    addMesh(new THREE.CapsuleGeometry(0.16, 0.28, 12, 24), joint, [0, 1.92, 0]);
+    addMesh(new THREE.CapsuleGeometry(0.72, 1.05, 18, 32), skin, [0, 1.22, 0], [0.9, 1, 0.42]);
+    addMesh(new THREE.CapsuleGeometry(0.13, 1.3, 12, 18), skin, [-0.78, 1.2, 0], [1, 1, 0.9]).rotation.z = -0.18;
+    addMesh(new THREE.CapsuleGeometry(0.13, 1.3, 12, 18), skin, [0.78, 1.2, 0], [1, 1, 0.9]).rotation.z = 0.18;
+    addMesh(new THREE.CapsuleGeometry(0.18, 1.45, 12, 20), skin, [-0.28, -0.25, 0], [1, 1, 0.9]).rotation.z = 0.04;
+    addMesh(new THREE.CapsuleGeometry(0.18, 1.45, 12, 20), skin, [0.28, -0.25, 0], [1, 1, 0.9]).rotation.z = -0.04;
+
+    const top = addMesh(new THREE.BoxGeometry(1.55, 1.22, 0.45), topMaterial, [0, 1.25, 0.02]);
+    const bottomLeft = addMesh(new THREE.BoxGeometry(0.38, 1.55, 0.38), bottomMaterial, [-0.25, -0.34, 0.03]);
+    const bottomRight = addMesh(new THREE.BoxGeometry(0.38, 1.55, 0.38), bottomMaterial, [0.25, -0.34, 0.03]);
+    const shoeLeft = addMesh(new THREE.BoxGeometry(0.58, 0.18, 0.82), shoeMaterial, [-0.28, -1.22, 0.18]);
+    const shoeRight = addMesh(new THREE.BoxGeometry(0.58, 0.18, 0.82), shoeMaterial, [0.28, -1.22, 0.18]);
+
+    const floor = new THREE.Mesh(
+      new THREE.CylinderGeometry(1.7, 1.7, 0.04, 96),
+      new THREE.MeshStandardMaterial({
+        color: 0x111721,
+        roughness: 0.5,
+        metalness: 0.2,
+      }),
+    );
+    floor.position.y = -1.38;
+    scene.add(floor);
+
+    const resize = () => {
+      const { width, height } = mount.getBoundingClientRect();
+      renderer.setSize(width, height);
+      camera.aspect = width / Math.max(height, 1);
+      camera.updateProjectionMatrix();
+    };
+
+    resize();
+    const resizeObserver = new ResizeObserver(resize);
+    resizeObserver.observe(mount);
+
+    let dragging = false;
+    let lastX = 0;
+    let targetRotation = 0.15;
+    let currentRotation = 0.15;
+
+    const pointerDown = (event: PointerEvent) => {
+      dragging = true;
+      lastX = event.clientX;
+      renderer.domElement.setPointerCapture(event.pointerId);
+    };
+    const pointerMove = (event: PointerEvent) => {
+      if (!dragging) return;
+      targetRotation += (event.clientX - lastX) * 0.012;
+      lastX = event.clientX;
+    };
+    const pointerUp = (event: PointerEvent) => {
+      dragging = false;
+      renderer.domElement.releasePointerCapture(event.pointerId);
+    };
+
+    renderer.domElement.addEventListener("pointerdown", pointerDown);
+    renderer.domElement.addEventListener("pointermove", pointerMove);
+    renderer.domElement.addEventListener("pointerup", pointerUp);
+    renderer.domElement.addEventListener("pointerleave", pointerUp);
+
+    let frame = 0;
+    const animate = () => {
+      const current = outfitRef.current;
+      if (current) {
+        topMaterial.color.set(mannequinColors[current.pieces.top.color] ?? "#eef4f7");
+        bottomMaterial.color.set(mannequinColors[current.pieces.bottom.color] ?? "#315f9d");
+        shoeMaterial.color.set(mannequinColors[current.pieces.shoes.color] ?? "#6b4a33");
+      }
+      if (!dragging) targetRotation += 0.002;
+      currentRotation += (targetRotation - currentRotation) * 0.08;
+      rig.rotation.y = currentRotation;
+      top.rotation.z = Math.sin(performance.now() * 0.001) * 0.01;
+      bottomLeft.rotation.z = 0.04;
+      bottomRight.rotation.z = -0.04;
+      shoeLeft.rotation.y = -0.08;
+      shoeRight.rotation.y = 0.08;
+      renderer.render(scene, camera);
+      frame = requestAnimationFrame(animate);
+    };
+
+    animate();
+
+    return () => {
+      cancelAnimationFrame(frame);
+      resizeObserver.disconnect();
+      renderer.domElement.removeEventListener("pointerdown", pointerDown);
+      renderer.domElement.removeEventListener("pointermove", pointerMove);
+      renderer.domElement.removeEventListener("pointerup", pointerUp);
+      renderer.domElement.removeEventListener("pointerleave", pointerUp);
+      renderer.dispose();
+      topMaterial.dispose();
+      bottomMaterial.dispose();
+      shoeMaterial.dispose();
+      skin.dispose();
+      joint.dispose();
+      scene.traverse((object) => {
+        if (object instanceof THREE.Mesh) object.geometry.dispose();
+      });
+      mount.removeChild(renderer.domElement);
+    };
+  }, []);
+
+  return <div className="mannequin-viewer" ref={mountRef} aria-label="Maniqui 3D interactivo" />;
+}
+
 export default function Home() {
   const [wardrobe, setWardrobe] = useState<Garment[]>(starterWardrobe);
-  const [references, setReferences] = useState<Reference[]>(starterReferences);
   const [occasion, setOccasion] = useState<Occasion>("office");
   const [season, setSeason] = useState<Season>("all");
   const [intent, setIntent] = useState<Intent>("minimal");
@@ -367,22 +531,13 @@ export default function Home() {
     bottom: { images: [], links: "" },
     shoes: { images: [], links: "" },
   });
-  const [referenceForm, setReferenceForm] = useState({
-    title: "",
-    mood: "minimal" as Intent,
-    image: "",
-    images: [] as string[],
-    sourceUrl: "",
-  });
   const [selectedOutfitIndex, setSelectedOutfitIndex] = useState(0);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     queueMicrotask(() => {
       const savedWardrobe = window.localStorage.getItem("outfits-wardrobe");
-      const savedReferences = window.localStorage.getItem("outfits-references");
       if (savedWardrobe) setWardrobe(normalizeGarments(JSON.parse(savedWardrobe)));
-      if (savedReferences) setReferences(JSON.parse(savedReferences));
       setHydrated(true);
     });
   }, []);
@@ -390,10 +545,6 @@ export default function Home() {
   useEffect(() => {
     if (hydrated) window.localStorage.setItem("outfits-wardrobe", JSON.stringify(wardrobe));
   }, [hydrated, wardrobe]);
-
-  useEffect(() => {
-    if (hydrated) window.localStorage.setItem("outfits-references", JSON.stringify(references));
-  }, [hydrated, references]);
 
   const outfits = useMemo(
     () => buildOutfits(wardrobe, occasion, season, intent),
@@ -447,30 +598,6 @@ export default function Home() {
       bottom: { images: [], links: "" },
       shoes: { images: [], links: "" },
     });
-  }
-
-  function addReference(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (
-      !referenceForm.title.trim() &&
-      !referenceForm.images.length &&
-      !referenceForm.sourceUrl.trim()
-    ) {
-      return;
-    }
-
-    setReferences((items) => [
-      {
-        id: `r-${Date.now()}`,
-        title: referenceForm.title.trim() || "Referencia sin titulo",
-        mood: referenceForm.mood,
-        image: getPrimaryImage(referenceForm),
-        images: referenceForm.images,
-        sourceUrl: referenceForm.sourceUrl.trim(),
-      },
-      ...items,
-    ]);
-    setReferenceForm({ title: "", mood: "minimal", image: "", images: [], sourceUrl: "" });
   }
 
   function removeGarment(id: string) {
@@ -558,25 +685,12 @@ export default function Home() {
         </div>
 
         <div className="look-layout">
-          <div className="look-board" aria-label="Visual del outfit">
+          <div className="look-board mannequin-board" aria-label="Visual 3D del outfit">
             {selectedOutfit ? (
-              allowedCategories.map((category) => {
-                const piece = selectedOutfit.pieces[category];
-                const image = getPrimaryImage(piece);
-                return (
-                  <article className={`look-slot ${category}`} key={category}>
-                    <span>{categoryShortLabels[category]}</span>
-                    <div>
-                      {image ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={image} alt={piece.name} />
-                      ) : (
-                        <strong>{piece.name}</strong>
-                      )}
-                    </div>
-                  </article>
-                );
-              })
+              <>
+                <MannequinViewer outfit={selectedOutfit} />
+                <div className="viewer-hint">Arrastra para rotar</div>
+              </>
             ) : (
               <div className="empty-state">
                 <strong>Faltan piezas</strong>
@@ -634,7 +748,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="workspace-grid" aria-label="Anadir prendas y referencias">
+      <section className="workspace-grid single" aria-label="Anadir prendas">
         <div className="tool-panel">
           <div className="section-heading compact">
             <p className="eyebrow">Input</p>
@@ -712,102 +826,6 @@ export default function Home() {
               Importar al armario
             </button>
           </form>
-        </div>
-
-        <div className="tool-panel">
-          <div className="section-heading compact">
-            <p className="eyebrow">Moodboard</p>
-            <h2>Referencias visuales.</h2>
-          </div>
-          <form className="stacked-form" onSubmit={addReference}>
-            <label>
-              Titulo
-              <input
-                placeholder="Ej. smart casual limpio"
-                value={referenceForm.title}
-                onChange={(event) =>
-                  setReferenceForm({ ...referenceForm, title: event.target.value })
-                }
-              />
-            </label>
-            <label>
-              Mood
-              <select
-                value={referenceForm.mood}
-                onChange={(event) =>
-                  setReferenceForm({ ...referenceForm, mood: event.target.value as Intent })
-                }
-              >
-                {Object.entries(intentLabels).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Fotos o captura
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={(event) =>
-                  readImages(event, (images) =>
-                    setReferenceForm({ ...referenceForm, image: images[0], images }),
-                  )
-                }
-              />
-            </label>
-            {referenceForm.images.length > 0 && (
-              <div className="upload-preview" aria-label="Referencias cargadas">
-                {referenceForm.images.map((image, index) => (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={image} alt={`Referencia ${index + 1}`} key={`${image}-${index}`} />
-                ))}
-              </div>
-            )}
-            <label>
-              Enlace
-              <input
-                inputMode="url"
-                placeholder="Pinterest, tienda, articulo o lookbook"
-                value={referenceForm.sourceUrl}
-                onChange={(event) =>
-                  setReferenceForm({ ...referenceForm, sourceUrl: event.target.value })
-                }
-              />
-            </label>
-            <button className="secondary-action" type="submit">
-              Guardar referencia
-            </button>
-          </form>
-
-          <div className="reference-list">
-            {references.map((reference) => {
-              const primaryImage = getPrimaryImage(reference);
-              return (
-                <article key={reference.id} className="reference-card">
-                  <div className="reference-image">
-                    {primaryImage ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={primaryImage} alt={reference.title} />
-                    ) : (
-                      <span>{intentLabels[reference.mood]}</span>
-                    )}
-                  </div>
-                  <div>
-                    <strong>{reference.title}</strong>
-                    <p>{intentLabels[reference.mood]}</p>
-                    {reference.sourceUrl && (
-                      <a href={reference.sourceUrl} target="_blank" rel="noreferrer">
-                        Abrir referencia
-                      </a>
-                    )}
-                  </div>
-                </article>
-              );
-            })}
-          </div>
         </div>
       </section>
 
