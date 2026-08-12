@@ -546,6 +546,13 @@ textarea:focus {
   color: var(--bg);
 }
 
+.import-status {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
 .secondary-action {
   border: 1px solid rgba(98, 231, 255, 0.45);
   background: rgba(98, 231, 255, 0.08);

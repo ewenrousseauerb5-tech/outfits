@@ -12,6 +12,10 @@ test("the outfit app source contains the primary product experience", async () =
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../package.json", import.meta.url), "utf8"),
   ]);
+  const importRoute = await readFile(
+    new URL("../app/api/import-product/route.ts", import.meta.url),
+    "utf8",
+  );
 
   assert.match(page, /Tu armario convertido en sistema/);
   assert.match(page, /Parte de arriba/);
@@ -27,8 +31,13 @@ test("the outfit app source contains the primary product experience", async () =
   assert.doesNotMatch(page, /Notas de estilo|Catalogo de tres piezas|Moodboard|Referencias visuales/);
   assert.match(page, /readImages/);
   assert.match(page, /createImportedGarment/);
+  assert.match(page, /importProductLink/);
+  assert.match(page, /\/api\/import-product/);
   assert.match(page, /productUrl/);
   assert.match(packageJson, /"three"/);
+  assert.match(importRoute, /og:image/);
+  assert.match(importRoute, /ld\\\+json/);
+  assert.match(importRoute, /data:\$\{contentType\};base64/);
   assert.match(layout, /lang="es"/);
   assert.match(packageJson, /"build": "next build --webpack"/);
   assert.doesNotMatch(page, /_sites-preview|SkeletonPreview/);

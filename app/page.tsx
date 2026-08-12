@@ -22,6 +22,15 @@ type Garment = {
   notes: string;
 };
 
+type ProductImport = {
+  ok: boolean;
+  title?: string;
+  image?: string;
+  images?: string[];
+  color?: string;
+  error?: string;
+};
+
 type Outfit = {
   id: string;
   title: string;
@@ -261,18 +270,26 @@ function inferFormality(source: string, category: Category) {
 function createImportedGarment({
   category,
   image,
+  images,
   source,
+  title,
+  color,
   index,
 }: {
   category: Category;
   image?: string;
+  images?: string[];
   source?: string;
+  title?: string;
+  color?: string;
   index: number;
 }): Garment {
-  const basis = source ?? `${categoryShortLabels[category]} foto ${index + 1}`;
-  const name = source
-    ? titleFromUrl(source, category)
-    : `${categoryLabels[category]} importada ${index + 1}`;
+  const basis = [title, source, color, `${categoryShortLabels[category]} foto ${index + 1}`]
+    .filter(Boolean)
+    .join(" ");
+  const name = title?.trim()
+    || (source ? titleFromUrl(source, category) : `${categoryLabels[category]} importada ${index + 1}`);
+  const gallery = images?.length ? images : image ? [image] : [];
 
   return {
     id: `g-${Date.now()}-${category}-${index}-${Math.random().toString(16).slice(2)}`,
@@ -281,14 +298,39 @@ function createImportedGarment({
     color: inferColor(basis, category),
     season: "all",
     formality: inferFormality(basis, category),
-    image,
-    images: image ? [image] : [],
+    image: gallery[0],
+    images: gallery,
     productUrl: source?.trim() ?? "",
     favorite: false,
     notes: source
-      ? "Importada desde enlace de tienda."
+      ? gallery.length
+        ? "Importada desde tienda con imagen detectada."
+        : "Importada desde enlace de tienda. Revisa imagen si la tienda bloquea el acceso."
       : "Importada desde foto. Lista para combinar.",
   };
+}
+
+async function importProductLink(category: Category, source: string, index: number) {
+  try {
+    const response = await fetch("/api/import-product", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: source, category }),
+    });
+
+    const data = (await response.json()) as ProductImport;
+    return createImportedGarment({
+      category,
+      source,
+      index,
+      title: data.title,
+      color: data.color,
+      image: data.image,
+      images: data.images,
+    });
+  } catch {
+    return createImportedGarment({ category, source, index });
+  }
 }
 
 function scoreGarment(garment: Garment, occasion: Occasion, season: Season, intent: Intent) {
@@ -533,6 +575,7 @@ export default function Home() {
   });
   const [selectedOutfitIndex, setSelectedOutfitIndex] = useState(0);
   const [hydrated, setHydrated] = useState(false);
+  const [importStatus, setImportStatus] = useState("");
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -568,29 +611,39 @@ export default function Home() {
     [wardrobe],
   );
 
-  function importGarments(event: FormEvent<HTMLFormElement>) {
+  async function importGarments(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const imported = allowedCategories.flatMap((category) => {
+    setImportStatus("Importando prendas...");
+
+    const photoImports = allowedCategories.flatMap((category) => {
       const draft = importDrafts[category];
-      const photoItems = draft.images.map((image, index) =>
+      return draft.images.map((image, index) =>
         createImportedGarment({ category, image, index }),
       );
-      const linkItems = draft.links
+    });
+
+    const linkInputs = allowedCategories.flatMap((category) => {
+      const draft = importDrafts[category];
+      return draft.links
         .split(/\n|,/)
         .map((link) => link.trim())
         .filter(Boolean)
-        .map((source, index) =>
-          createImportedGarment({
-            category,
-            source,
-            index: draft.images.length + index,
-          }),
-        );
-
-      return [...photoItems, ...linkItems];
+        .map((source, index) => ({
+          category,
+          source,
+          index: draft.images.length + index,
+        }));
     });
 
-    if (!imported.length) return;
+    const linkImports = await Promise.all(
+      linkInputs.map((item) => importProductLink(item.category, item.source, item.index)),
+    );
+    const imported = [...photoImports, ...linkImports];
+
+    if (!imported.length) {
+      setImportStatus("Sube fotos o pega enlaces para importar.");
+      return;
+    }
 
     setWardrobe((items) => [...imported, ...items]);
     setImportDrafts({
@@ -598,6 +651,7 @@ export default function Home() {
       bottom: { images: [], links: "" },
       shoes: { images: [], links: "" },
     });
+    setImportStatus(`${imported.length} prendas importadas.`);
   }
 
   function removeGarment(id: string) {
@@ -825,6 +879,7 @@ export default function Home() {
             <button className="primary-action" type="submit">
               Importar al armario
             </button>
+            {importStatus && <p className="import-status">{importStatus}</p>}
           </form>
         </div>
       </section>
