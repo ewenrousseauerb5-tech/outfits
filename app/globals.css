@@ -647,7 +647,8 @@ textarea:focus {
 
 .primary-action,
 .secondary-action,
-.garment-actions button {
+.garment-actions button,
+.image-action {
   min-height: 42px;
   border: 0;
   border-radius: 8px;
@@ -749,9 +750,25 @@ textarea:focus {
   color: var(--muted);
 }
 
+.image-action {
+  display: grid;
+  place-items: center;
+  border-radius: 0;
+  background: rgba(10, 13, 18, 0.96);
+  color: var(--muted);
+  font-size: 0.82rem;
+  text-transform: none;
+  cursor: pointer;
+}
+
+.image-action input {
+  display: none;
+}
+
 .primary-action:hover,
 .secondary-action:hover,
 .garment-actions button:hover,
+.image-action:hover,
 .outfit-switcher button:hover {
   filter: brightness(1.12);
 }

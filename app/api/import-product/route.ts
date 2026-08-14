@@ -517,6 +517,15 @@ async function imageToDataUrl(imageUrl: string | undefined, referer: string) {
   }
 }
 
+async function readDirectImage(url: string) {
+  try {
+    const dataUrl = await imageToDataUrl(url, url);
+    return dataUrl ? [dataUrl] : [];
+  } catch {
+    return [];
+  }
+}
+
 async function resolveImages(candidates: string[], referer: string) {
   const resolved: string[] = [];
 
@@ -562,6 +571,22 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    if (/\.(avif|webp|png|jpe?g|gif|svg)(\?|$)/i.test(productUrl.pathname)) {
+      const images = await readDirectImage(productUrl.toString());
+      if (images.length) {
+        return NextResponse.json({
+          ok: true,
+          title: titleFromUrl(productUrl),
+          sourceHost: productUrl.hostname.replace(/^www\./, ""),
+          confidence: "high",
+          fields: ["title", "image"],
+          image: images[0],
+          images,
+          imageCandidates: [productUrl.toString()],
+        });
+      }
+    }
+
     const response = await fetch(productUrl, {
       headers: {
         accept: "text/html,application/xhtml+xml",

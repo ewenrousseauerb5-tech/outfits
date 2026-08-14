@@ -642,6 +642,25 @@ export default function Home() {
     );
   }
 
+  function attachImagesToGarment(id: string, images: string[]) {
+    if (!images.length) return;
+
+    setWardrobe((items) =>
+      items.map((item) => {
+        if (item.id !== id) return item;
+        const gallery = [...images, ...getImages(item)];
+
+        return {
+          ...item,
+          image: gallery[0],
+          images: gallery,
+          notes: item.notes || "Foto anadida manualmente.",
+        };
+      }),
+    );
+    setImportStatus("Foto anadida a la prenda.");
+  }
+
   async function refreshGarment(id: string) {
     const current = wardrobe.find((item) => item.id === id);
     if (!current?.productUrl) return;
@@ -882,7 +901,7 @@ export default function Home() {
                 <label>
                   Enlaces de tienda
                   <textarea
-                    placeholder="Pega uno o varios enlaces, uno por linea"
+                    placeholder="Pega enlaces de tienda o enlaces directos de imagen, uno por linea"
                     value={importDrafts[category].links}
                     onChange={(event) =>
                       setImportDrafts((drafts) => ({
@@ -954,6 +973,17 @@ export default function Home() {
                   <button type="button" onClick={() => toggleFavorite(garment.id)}>
                     {garment.favorite ? "Favorita" : "Marcar"}
                   </button>
+                  <label className="image-action">
+                    Foto
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={(event) =>
+                        readImages(event, (images) => attachImagesToGarment(garment.id, images))
+                      }
+                    />
+                  </label>
                   {garment.productUrl && (
                     <button type="button" onClick={() => refreshGarment(garment.id)}>
                       Actualizar
