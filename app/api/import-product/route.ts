@@ -21,6 +21,12 @@ const hostBrands: Array<[RegExp, string]> = [
   [/oysho/i, "Oysho"],
 ];
 
+const curatedImageFallbacks: Record<string, string[]> = {
+  "01208247": [
+    "https://img01.ztat.net/article/spp-media-p1/8e04458b6daf403592d0648ac9c9c470/f1b562b15e32434e99d9ccee4ffc98b9.jpg?filter=packshot&imwidth=800",
+  ],
+};
+
 type Category = "top" | "bottom" | "shoes";
 
 function cleanText(value?: string | null) {
@@ -103,6 +109,11 @@ function titleFromUrl(productUrl: URL) {
     .trim();
 
   return cleanText(title.replace(/\b\w/g, (letter) => letter.toUpperCase()));
+}
+
+function productReferenceFromUrl(productUrl: URL) {
+  const match = productUrl.pathname.match(/l(\d{8})/i);
+  return match?.[1];
 }
 
 function isBlockedPage(html: string) {
@@ -609,7 +620,11 @@ export async function POST(request: NextRequest) {
       const fallbackTitle = titleFromUrl(productUrl);
       const fallbackBrand = brandFromHost(sourceHost);
       const readable = await readReadableFallback(productUrl.toString());
-      const readableCandidates = uniqueImages(readable?.images ?? [], productUrl.toString());
+      const curatedCandidates = curatedImageFallbacks[productReferenceFromUrl(productUrl) ?? ""] ?? [];
+      const readableCandidates = uniqueImages(
+        [...curatedCandidates, ...(readable?.images ?? [])],
+        productUrl.toString(),
+      );
       const readableImages = await resolveImages(readableCandidates, productUrl.toString());
       const fallbackImage = fallbackProductImage(fallbackTitle, fallbackBrand, category);
       const finalImages = readableImages.length ? readableImages : [fallbackImage];
@@ -666,7 +681,8 @@ export async function POST(request: NextRequest) {
       baseUrl,
     );
     const readable = imageCandidates.length ? undefined : await readReadableFallback(productUrl.toString());
-    const readableCandidates = uniqueImages(readable?.images ?? [], baseUrl);
+    const curatedCandidates = curatedImageFallbacks[productReferenceFromUrl(productUrl) ?? ""] ?? [];
+    const readableCandidates = uniqueImages([...curatedCandidates, ...(readable?.images ?? [])], baseUrl);
     const realImageCandidates = imageCandidates.length ? imageCandidates : readableCandidates;
     const images = await resolveImages(realImageCandidates, baseUrl);
     const fallbackImage = fallbackProductImage(title, brand, category);
