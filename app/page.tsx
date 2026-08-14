@@ -18,6 +18,12 @@ type Garment = {
   image?: string;
   images?: string[];
   productUrl?: string;
+  brand?: string;
+  price?: string;
+  currency?: string;
+  sourceHost?: string;
+  importConfidence?: "high" | "medium" | "low";
+  importFields?: string[];
   favorite: boolean;
   notes: string;
 };
@@ -27,7 +33,16 @@ type ProductImport = {
   title?: string;
   image?: string;
   images?: string[];
+  brand?: string;
+  price?: string;
+  currency?: string;
+  description?: string;
+  availability?: string;
+  sku?: string;
   color?: string;
+  sourceHost?: string;
+  confidence?: "high" | "medium" | "low";
+  fields?: string[];
   imageCandidates?: string[];
   error?: string;
 };
@@ -196,6 +211,12 @@ function normalizeGarments(value: unknown): Garment[] {
       image: item.image,
       images: item.images?.length ? item.images : item.image ? [item.image] : [],
       productUrl: item.productUrl ?? "",
+      brand: item.brand ?? "",
+      price: item.price ?? "",
+      currency: item.currency ?? "",
+      sourceHost: item.sourceHost ?? "",
+      importConfidence: item.importConfidence,
+      importFields: item.importFields ?? [],
       favorite: Boolean(item.favorite),
       notes: item.notes ?? "",
     }));
@@ -268,6 +289,25 @@ function inferFormality(source: string, category: Category) {
   return importDefaults[category].formality;
 }
 
+function hostFromUrl(source?: string) {
+  if (!source) return "";
+  try {
+    return new URL(source).hostname.replace(/^www\./, "");
+  } catch {
+    return "";
+  }
+}
+
+function formatPrice(price?: string, currency?: string) {
+  if (!price) return "";
+  const cleanPrice = price.trim();
+  const cleanCurrency = currency?.trim();
+  if (!cleanCurrency) return cleanPrice;
+
+  const symbol = cleanCurrency === "EUR" ? "€" : cleanCurrency === "GBP" ? "£" : cleanCurrency === "USD" ? "$" : "";
+  return symbol ? `${cleanPrice} ${symbol}` : `${cleanPrice} ${cleanCurrency}`;
+}
+
 function createImportedGarment({
   category,
   image,
@@ -275,6 +315,15 @@ function createImportedGarment({
   source,
   title,
   color,
+  brand,
+  price,
+  currency,
+  description,
+  availability,
+  sku,
+  sourceHost,
+  confidence,
+  fields,
   index,
 }: {
   category: Category;
@@ -283,14 +332,29 @@ function createImportedGarment({
   source?: string;
   title?: string;
   color?: string;
+  brand?: string;
+  price?: string;
+  currency?: string;
+  description?: string;
+  availability?: string;
+  sku?: string;
+  sourceHost?: string;
+  confidence?: "high" | "medium" | "low";
+  fields?: string[];
   index: number;
 }): Garment {
-  const basis = [title, source, color, `${categoryShortLabels[category]} foto ${index + 1}`]
+  const basis = [title, source, color, brand, description, `${categoryShortLabels[category]} foto ${index + 1}`]
     .filter(Boolean)
     .join(" ");
   const name = title?.trim()
     || (source ? titleFromUrl(source, category) : `${categoryLabels[category]} importada ${index + 1}`);
   const gallery = images?.length ? images : image ? [image] : [];
+  const metadata = [
+    brand && `Marca: ${brand}`,
+    formatPrice(price, currency) && `Precio: ${formatPrice(price, currency)}`,
+    availability && `Estado: ${availability.replace(/^https?:\/\/schema.org\//, "")}`,
+    sku && `SKU: ${sku}`,
+  ].filter(Boolean);
 
   return {
     id: `g-${Date.now()}-${category}-${index}-${Math.random().toString(16).slice(2)}`,
@@ -302,11 +366,21 @@ function createImportedGarment({
     image: gallery[0],
     images: gallery,
     productUrl: source?.trim() ?? "",
+    brand: brand?.trim() ?? "",
+    price: price?.trim() ?? "",
+    currency: currency?.trim() ?? "",
+    sourceHost: sourceHost?.trim() || hostFromUrl(source),
+    importConfidence: confidence,
+    importFields: fields ?? [],
     favorite: false,
     notes: source
-      ? gallery.length
-        ? "Importada desde tienda con imagen detectada."
-        : "Importada desde enlace de tienda. Revisa imagen si la tienda bloquea el acceso."
+      ? [
+          gallery.length
+            ? "Importada desde tienda con datos detectados."
+            : "Importada desde enlace de tienda. Revisa imagen si la tienda bloquea el acceso.",
+          description,
+          metadata.join(" · "),
+        ].filter(Boolean).join(" ")
       : "Importada desde foto. Lista para combinar.",
   };
 }
@@ -328,6 +402,15 @@ async function importProductLink(category: Category, source: string, index: numb
       color: data.color,
       image: data.image,
       images: data.images,
+      brand: data.brand,
+      price: data.price,
+      currency: data.currency,
+      description: data.description,
+      availability: data.availability,
+      sku: data.sku,
+      sourceHost: data.sourceHost,
+      confidence: data.confidence,
+      fields: data.fields,
     });
 
     if (!getPrimaryImage(garment) && data.error) {
@@ -783,6 +866,11 @@ export default function Home() {
                       <div>
                         <p>{categoryLabels[piece.category]}</p>
                         <h3>{piece.name}</h3>
+                        {(piece.brand || piece.price) && (
+                          <p className="commerce-line">
+                            {[piece.brand, formatPrice(piece.price, piece.currency)].filter(Boolean).join(" · ")}
+                          </p>
+                        )}
                         <small>
                           {piece.color} · formalidad {piece.formality}/5
                         </small>
@@ -919,12 +1007,19 @@ export default function Home() {
                 <div className="garment-info">
                   <p>{categoryLabels[garment.category]}</p>
                   <h3>{garment.name}</h3>
+                  {(garment.brand || garment.price) && (
+                    <p className="commerce-line">
+                      {[garment.brand, formatPrice(garment.price, garment.currency)].filter(Boolean).join(" · ")}
+                    </p>
+                  )}
                   <small>
                     {garment.color} · nivel {garment.formality}/5
                   </small>
                   {garment.notes && <p className="notes">{garment.notes}</p>}
                   <div className="garment-meta">
                     {imageCount > 1 && <span>{imageCount} fotos</span>}
+                    {garment.sourceHost && <span>{garment.sourceHost}</span>}
+                    {garment.importConfidence && <span>Import {garment.importConfidence}</span>}
                     {garment.favorite && <span>Favorita</span>}
                     {garment.productUrl && (
                       <a href={garment.productUrl} target="_blank" rel="noreferrer">

@@ -385,6 +385,7 @@ textarea:focus {
 .piece-card p,
 .piece-card h3,
 .piece-card small,
+.commerce-line,
 .look-summary,
 .notes {
   margin: 0;
@@ -407,6 +408,13 @@ textarea:focus {
   display: block;
   margin: 7px 0;
   color: var(--muted);
+}
+
+.commerce-line {
+  color: var(--green);
+  font-size: 0.78rem;
+  font-weight: 900;
+  line-height: 1.35;
 }
 
 .look-summary {
