@@ -292,35 +292,99 @@ textarea:focus {
   object-fit: cover;
 }
 
-.mannequin-board {
-  display: block;
+.fit-board-shell {
+  padding: 14px;
 }
 
-.mannequin-viewer {
-  width: 100%;
-  height: 100%;
-  min-height: 520px;
-  touch-action: none;
+.fit-board {
+  display: grid;
+  grid-template-rows: 1.1fr 1.25fr 0.82fr;
+  gap: 12px;
+  min-height: 510px;
 }
 
-.mannequin-viewer canvas {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-
-.viewer-hint {
-  position: absolute;
-  right: 14px;
-  bottom: 14px;
+.fit-slot {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(130px, 0.72fr) minmax(0, 1fr) 48px;
+  align-items: center;
+  overflow: hidden;
   border: 1px solid var(--line);
-  border-radius: 999px;
-  background: rgba(5, 7, 10, 0.72);
-  color: var(--muted);
-  padding: 8px 10px;
-  font-size: 0.72rem;
+  border-radius: 10px;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.055), transparent 62%),
+    rgba(5, 7, 10, 0.58);
+}
+
+.fit-image {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  min-height: 132px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.fit-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 12px;
+}
+
+.fit-image span {
+  color: var(--cyan);
+  font-size: 0.75rem;
   font-weight: 900;
   text-transform: uppercase;
+}
+
+.fit-copy {
+  display: grid;
+  gap: 7px;
+  padding: 18px;
+}
+
+.fit-copy p,
+.fit-copy h3 {
+  margin: 0;
+}
+
+.fit-copy p {
+  color: var(--cyan);
+  font-size: 0.68rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.fit-copy h3 {
+  max-width: 420px;
+  font-size: clamp(1.08rem, 1.8vw, 1.55rem);
+  line-height: 1.05;
+}
+
+.fit-copy span {
+  color: var(--green);
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.fit-next {
+  width: 48px;
+  height: 100%;
+  min-height: 100%;
+  border: 0;
+  border-left: 1px solid var(--line);
+  border-radius: 0;
+  background: rgba(255, 255, 255, 0.055);
+  color: var(--text);
+  font-size: 1.6rem;
+  font-weight: 900;
+}
+
+.fit-next:hover {
+  background: var(--text);
+  color: var(--bg);
 }
 
 .empty-state {
@@ -692,8 +756,20 @@ textarea:focus {
   }
 
   .look-board,
-  .mannequin-viewer {
+  .fit-board {
     min-height: 430px;
+  }
+
+  .fit-slot {
+    grid-template-columns: 112px minmax(0, 1fr) 44px;
+  }
+
+  .fit-copy {
+    padding: 12px;
+  }
+
+  .fit-next {
+    width: 44px;
   }
 
   .piece-card {

@@ -21,6 +21,8 @@ const hostBrands: Array<[RegExp, string]> = [
   [/oysho/i, "Oysho"],
 ];
 
+type Category = "top" | "bottom" | "shoes";
+
 function cleanText(value?: string | null) {
   return value
     ?.replace(/&amp;/g, "&")
@@ -105,6 +107,22 @@ function titleFromUrl(productUrl: URL) {
 
 function isBlockedPage(html: string) {
   return /access denied|errors\.edgesuite\.net|akamai/i.test(html);
+}
+
+function fallbackProductImage(title: string | undefined, brand: string | undefined, category: Category | undefined) {
+  const label = cleanText(title) || "Prenda importada";
+  const brandLabel = cleanText(brand) || "Tienda";
+  const shape =
+    category === "top"
+      ? `<path d="M215 122 166 92l-50 44 34 44 23-18v166h214V162l23 18 34-44-50-44-49 30c-22 13-62 13-84 0Z" fill="#e8edf2"/><path d="M173 162h214v166H173z" fill="#f8fbff" opacity=".14"/>`
+      : category === "shoes"
+        ? `<path d="M117 248c62 30 112 37 188 25 39-6 86 6 112 33 8 8 5 24-7 28H108c-22 0-34-27-18-43l27-43Z" fill="#e8edf2"/><path d="M116 304h304" stroke="#111827" stroke-width="12" opacity=".28"/>`
+        : `<path d="M183 100h178l18 260H274l-2-176h-12l-32 176H123l60-260Z" fill="#e8edf2"/><path d="M183 100h178l8 54H171l12-54Z" fill="#f8fbff" opacity=".18"/>`;
+  const safeLabel = label.replace(/[<>&]/g, "");
+  const safeBrand = brandLabel.replace(/[<>&]/g, "");
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="800" viewBox="0 0 640 800"><defs><linearGradient id="g" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#101827"/><stop offset="1" stop-color="#05070a"/></linearGradient></defs><rect width="640" height="800" fill="url(#g)"/><circle cx="512" cy="122" r="96" fill="#62e7ff" opacity=".14"/><g transform="translate(82 132)">${shape}</g><text x="48" y="652" fill="#f4f7fb" font-family="Arial, Helvetica, sans-serif" font-size="38" font-weight="800">${safeLabel.slice(0, 28)}</text><text x="48" y="704" fill="#8c96a7" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700">${safeBrand.slice(0, 26)}</text></svg>`;
+
+  return `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`;
 }
 
 function normalizeImage(value: unknown): string | undefined {
@@ -489,8 +507,9 @@ function confidence(fields: string[], imageCount: number) {
 }
 
 export async function POST(request: NextRequest) {
-  const body = (await request.json().catch(() => null)) as { url?: string } | null;
+  const body = (await request.json().catch(() => null)) as { url?: string; category?: Category } | null;
   const url = body?.url?.trim();
+  const category = body?.category;
 
   if (!url) {
     return NextResponse.json({ ok: false, error: "Missing url" }, { status: 400 });
@@ -526,17 +545,19 @@ export async function POST(request: NextRequest) {
     if (isBlockedPage(html)) {
       const fallbackTitle = titleFromUrl(productUrl);
       const fallbackBrand = brandFromHost(sourceHost);
+      const fallbackImage = fallbackProductImage(fallbackTitle, fallbackBrand, category);
 
       return NextResponse.json({
         ok: true,
         title: fallbackTitle,
         brand: fallbackBrand,
         sourceHost,
-        confidence: "low",
-        fields: ["title", fallbackBrand && "brand"].filter(Boolean),
+        confidence: "medium",
+        fields: ["title", fallbackBrand && "brand", "image"].filter(Boolean),
+        image: fallbackImage,
+        images: [fallbackImage],
         imageCandidates: [],
-        images: [],
-        error: "La tienda bloqueo la importacion directa de imagenes.",
+        error: "La tienda bloqueo la foto real; se creo un visual temporal para que la prenda aparezca.",
       });
     }
 
@@ -576,7 +597,9 @@ export async function POST(request: NextRequest) {
       baseUrl,
     );
     const images = await resolveImages(imageCandidates, baseUrl);
-    const image = images[0];
+    const fallbackImage = fallbackProductImage(title, brand, category);
+    const finalImages = images.length ? images : [fallbackImage];
+    const image = finalImages[0];
 
     const fields = [
       title && "title",
@@ -587,7 +610,7 @@ export async function POST(request: NextRequest) {
       availability && "availability",
       color && "color",
       sku && "sku",
-      imageCandidates.length && "image",
+      (imageCandidates.length || fallbackImage) && "image",
     ].filter(Boolean) as string[];
 
     return NextResponse.json({
@@ -604,7 +627,7 @@ export async function POST(request: NextRequest) {
       confidence: confidence(fields, imageCandidates.length),
       fields,
       image,
-      images,
+      images: finalImages,
       imageSource: imageCandidates[0],
       imageCandidates,
     });
