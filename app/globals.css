@@ -293,98 +293,140 @@ textarea:focus {
 }
 
 .fit-board-shell {
-  padding: 14px;
+  padding: 0;
 }
 
 .fit-board {
-  display: grid;
-  grid-template-rows: 1.1fr 1.25fr 0.82fr;
-  gap: 12px;
-  min-height: 510px;
-}
-
-.fit-slot {
   position: relative;
-  display: grid;
-  grid-template-columns: minmax(130px, 0.72fr) minmax(0, 1fr) 48px;
-  align-items: center;
+  min-height: 540px;
   overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: 10px;
   background:
-    linear-gradient(90deg, rgba(255, 255, 255, 0.055), transparent 62%),
-    rgba(5, 7, 10, 0.58);
+    radial-gradient(circle at 42% 16%, rgba(255, 255, 255, 0.08), transparent 26%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.045), transparent 72%);
 }
 
-.fit-image {
+.floating-piece {
+  position: absolute;
+  left: 10%;
+  right: 8%;
+  display: grid;
+  grid-template-columns: minmax(170px, 330px) minmax(180px, 1fr);
+  align-items: center;
+  gap: clamp(22px, 4vw, 54px);
+}
+
+.floating-piece-top {
+  top: 5%;
+}
+
+.floating-piece-bottom {
+  top: 36%;
+}
+
+.floating-piece-shoes {
+  top: 71%;
+}
+
+.floating-image {
   display: grid;
   place-items: center;
-  width: 100%;
-  height: 100%;
-  min-height: 132px;
-  background: rgba(255, 255, 255, 0.035);
+  height: clamp(125px, 19vh, 170px);
+  filter: drop-shadow(0 28px 34px rgba(0, 0, 0, 0.34));
 }
 
-.fit-image img {
+.floating-image img {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  padding: 12px;
 }
 
-.fit-image span {
+.floating-image span {
+  display: grid;
+  place-items: center;
+  width: min(220px, 100%);
+  aspect-ratio: 1.28;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.045);
   color: var(--cyan);
   font-size: 0.75rem;
   font-weight: 900;
   text-transform: uppercase;
 }
 
-.fit-copy {
+.floating-callout {
   display: grid;
-  gap: 7px;
-  padding: 18px;
+  grid-template-columns: minmax(70px, 0.42fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+  min-height: 86px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  padding: 0;
+  text-align: left;
 }
 
-.fit-copy p,
-.fit-copy h3 {
-  margin: 0;
+.callout-line {
+  position: relative;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(98, 231, 255, 0), rgba(98, 231, 255, 0.9));
 }
 
-.fit-copy p {
+.callout-line::after {
+  position: absolute;
+  right: -1px;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  border-top: 2px solid var(--cyan);
+  border-right: 2px solid var(--cyan);
+  content: "";
+  transform: translateY(-50%) rotate(45deg);
+}
+
+.callout-copy {
+  display: grid;
+  gap: 5px;
+  border-left: 1px solid var(--line);
+  padding-left: 14px;
+}
+
+.callout-copy strong,
+.callout-copy em,
+.callout-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.callout-copy strong {
   color: var(--cyan);
   font-size: 0.68rem;
+  font-style: normal;
   font-weight: 900;
   text-transform: uppercase;
 }
 
-.fit-copy h3 {
-  max-width: 420px;
-  font-size: clamp(1.08rem, 1.8vw, 1.55rem);
-  line-height: 1.05;
-}
-
-.fit-copy span {
-  color: var(--green);
-  font-size: 0.82rem;
-  font-weight: 900;
-}
-
-.fit-next {
-  width: 48px;
-  height: 100%;
-  min-height: 100%;
-  border: 0;
-  border-left: 1px solid var(--line);
-  border-radius: 0;
-  background: rgba(255, 255, 255, 0.055);
+.callout-copy em {
   color: var(--text);
-  font-size: 1.6rem;
+  font-size: clamp(1rem, 1.55vw, 1.28rem);
+  font-style: normal;
   font-weight: 900;
 }
 
-.fit-next:hover {
-  background: var(--text);
-  color: var(--bg);
+.callout-copy small {
+  color: var(--green);
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.floating-callout:hover .callout-line {
+  background: linear-gradient(90deg, rgba(139, 255, 186, 0), rgba(139, 255, 186, 0.95));
+}
+
+.floating-callout:hover .callout-line::after {
+  border-color: var(--green);
 }
 
 .empty-state {
@@ -694,7 +736,8 @@ textarea:focus {
 
 .garment-actions {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
   gap: 1px;
   border-top: 1px solid var(--line);
   background: var(--line);
@@ -757,19 +800,27 @@ textarea:focus {
 
   .look-board,
   .fit-board {
-    min-height: 430px;
+    min-height: 520px;
   }
 
-  .fit-slot {
-    grid-template-columns: 112px minmax(0, 1fr) 44px;
+  .floating-piece {
+    left: 6%;
+    right: 5%;
+    grid-template-columns: minmax(100px, 38%) minmax(0, 1fr);
+    gap: 14px;
   }
 
-  .fit-copy {
-    padding: 12px;
+  .floating-image {
+    height: 118px;
   }
 
-  .fit-next {
-    width: 44px;
+  .floating-callout {
+    grid-template-columns: 48px minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .callout-copy {
+    padding-left: 10px;
   }
 
   .piece-card {

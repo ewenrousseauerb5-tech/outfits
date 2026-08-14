@@ -401,6 +401,44 @@ function extractEmbeddedImageUrls(html: string) {
   return values;
 }
 
+function readableProxyUrl(url: string) {
+  return `https://r.jina.ai/http://r.jina.ai/http://${url}`;
+}
+
+function extractMarkdownImageUrls(markdown: string) {
+  const values: string[] = [];
+  const imagePattern = /!\[[^\]]*]\((https?:\/\/[^)\s]+)\)/gi;
+  const directPattern = /https?:\/\/[^\s)]+?\.(?:avif|webp|png|jpe?g|gif)(?:\?[^\s)]*)?/gi;
+
+  for (const match of markdown.matchAll(imagePattern)) values.push(match[1]);
+  for (const match of markdown.matchAll(directPattern)) values.push(match[0]);
+
+  return values;
+}
+
+async function readReadableFallback(url: string) {
+  try {
+    const response = await fetch(readableProxyUrl(url), {
+      headers: {
+        accept: "text/plain,text/markdown,*/*",
+        "user-agent":
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121 Safari/537.36",
+      },
+    });
+    if (!response.ok) return undefined;
+
+    const markdown = await response.text();
+    if (/access denied/i.test(markdown) && !/!\[/.test(markdown)) return undefined;
+
+    return {
+      title: cleanText(markdown.match(/^Title:\s*(.+)$/im)?.[1]),
+      images: extractMarkdownImageUrls(markdown),
+    };
+  } catch {
+    return undefined;
+  }
+}
+
 function uniqueImages(values: Array<string | undefined>, baseUrl: string) {
   const seen = new Set<string>();
   return values
@@ -545,19 +583,25 @@ export async function POST(request: NextRequest) {
     if (isBlockedPage(html)) {
       const fallbackTitle = titleFromUrl(productUrl);
       const fallbackBrand = brandFromHost(sourceHost);
+      const readable = await readReadableFallback(productUrl.toString());
+      const readableCandidates = uniqueImages(readable?.images ?? [], productUrl.toString());
+      const readableImages = await resolveImages(readableCandidates, productUrl.toString());
       const fallbackImage = fallbackProductImage(fallbackTitle, fallbackBrand, category);
+      const finalImages = readableImages.length ? readableImages : [fallbackImage];
 
       return NextResponse.json({
         ok: true,
-        title: fallbackTitle,
+        title: readable?.title && !/massimo dutti$/i.test(readable.title) ? readable.title : fallbackTitle,
         brand: fallbackBrand,
         sourceHost,
-        confidence: "medium",
+        confidence: readableImages.length ? "high" : "medium",
         fields: ["title", fallbackBrand && "brand", "image"].filter(Boolean),
-        image: fallbackImage,
-        images: [fallbackImage],
-        imageCandidates: [],
-        error: "La tienda bloqueo la foto real; se creo un visual temporal para que la prenda aparezca.",
+        image: finalImages[0],
+        images: finalImages,
+        imageCandidates: readableCandidates,
+        error: readableImages.length
+          ? undefined
+          : "La tienda bloqueo la foto real; se creo un visual temporal para que la prenda aparezca.",
       });
     }
 
@@ -596,7 +640,10 @@ export async function POST(request: NextRequest) {
       ],
       baseUrl,
     );
-    const images = await resolveImages(imageCandidates, baseUrl);
+    const readable = imageCandidates.length ? undefined : await readReadableFallback(productUrl.toString());
+    const readableCandidates = uniqueImages(readable?.images ?? [], baseUrl);
+    const realImageCandidates = imageCandidates.length ? imageCandidates : readableCandidates;
+    const images = await resolveImages(realImageCandidates, baseUrl);
     const fallbackImage = fallbackProductImage(title, brand, category);
     const finalImages = images.length ? images : [fallbackImage];
     const image = finalImages[0];
@@ -610,7 +657,7 @@ export async function POST(request: NextRequest) {
       availability && "availability",
       color && "color",
       sku && "sku",
-      (imageCandidates.length || fallbackImage) && "image",
+      (realImageCandidates.length || fallbackImage) && "image",
     ].filter(Boolean) as string[];
 
     return NextResponse.json({
@@ -624,12 +671,12 @@ export async function POST(request: NextRequest) {
       color,
       sku,
       sourceHost,
-      confidence: confidence(fields, imageCandidates.length),
+      confidence: confidence(fields, realImageCandidates.length),
       fields,
       image,
       images: finalImages,
-      imageSource: imageCandidates[0],
-      imageCandidates,
+      imageSource: realImageCandidates[0],
+      imageCandidates: realImageCandidates,
     });
   } catch (error) {
     return NextResponse.json({

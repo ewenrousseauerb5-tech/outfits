@@ -488,8 +488,8 @@ function OutfitBoard({
         const image = getPrimaryImage(piece);
 
         return (
-          <article className={`fit-slot fit-slot-${category}`} key={category}>
-            <div className="fit-image">
+          <article className={`floating-piece floating-piece-${category}`} key={category}>
+            <div className="floating-image">
               {image ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={image} alt={piece.name} />
@@ -497,20 +497,20 @@ function OutfitBoard({
                 <span>{categoryShortLabels[category]}</span>
               )}
             </div>
-            <div className="fit-copy">
-              <p>{categoryLabels[category]}</p>
-              <h3>{piece.name}</h3>
-              {(piece.brand || piece.price) && (
-                <span>{[piece.brand, formatPrice(piece.price, piece.currency)].filter(Boolean).join(" · ")}</span>
-              )}
-            </div>
             <button
-              className="fit-next"
+              className="floating-callout"
               type="button"
               aria-label={`Cambiar ${categoryLabels[category].toLowerCase()}`}
               onClick={() => onNext(category)}
             >
-              →
+              <span className="callout-line" aria-hidden="true" />
+              <span className="callout-copy">
+                <strong>{categoryLabels[category]}</strong>
+                <em>{piece.name}</em>
+                {(piece.brand || piece.price) && (
+                  <small>{[piece.brand, formatPrice(piece.price, piece.currency)].filter(Boolean).join(" · ")}</small>
+                )}
+              </span>
             </button>
           </article>
         );
@@ -640,6 +640,36 @@ export default function Home() {
         item.id === id ? { ...item, favorite: !item.favorite } : item,
       ),
     );
+  }
+
+  async function refreshGarment(id: string) {
+    const current = wardrobe.find((item) => item.id === id);
+    if (!current?.productUrl) return;
+
+    setImportStatus(`Actualizando ${current.name}...`);
+    const refreshed = await importProductLink(current.category, current.productUrl, 0);
+    setWardrobe((items) =>
+      items.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              name: refreshed.name || item.name,
+              color: refreshed.color || item.color,
+              formality: refreshed.formality || item.formality,
+              image: refreshed.image || item.image,
+              images: refreshed.images?.length ? refreshed.images : item.images,
+              brand: refreshed.brand || item.brand,
+              price: refreshed.price || item.price,
+              currency: refreshed.currency || item.currency,
+              sourceHost: refreshed.sourceHost || item.sourceHost,
+              importConfidence: refreshed.importConfidence || item.importConfidence,
+              importFields: refreshed.importFields?.length ? refreshed.importFields : item.importFields,
+              notes: refreshed.notes || item.notes,
+            }
+          : item,
+      ),
+    );
+    setImportStatus(`Actualizada: ${current.name}.`);
   }
 
   function cyclePiece(category: Category) {
@@ -924,6 +954,11 @@ export default function Home() {
                   <button type="button" onClick={() => toggleFavorite(garment.id)}>
                     {garment.favorite ? "Favorita" : "Marcar"}
                   </button>
+                  {garment.productUrl && (
+                    <button type="button" onClick={() => refreshGarment(garment.id)}>
+                      Actualizar
+                    </button>
+                  )}
                   <button type="button" onClick={() => removeGarment(garment.id)}>
                     Quitar
                   </button>

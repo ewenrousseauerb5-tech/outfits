@@ -27,7 +27,8 @@ test("the outfit app source contains the primary product experience", async () =
   assert.match(page, /Enlaces de tienda/);
   assert.match(page, /OutfitBoard/);
   assert.match(page, /Composicion del outfit/);
-  assert.match(page, /fit-next/);
+  assert.match(page, /floating-callout/);
+  assert.match(page, /callout-line/);
   assert.doesNotMatch(page, /MannequinViewer|Maniqui 3D interactivo|THREE|three/);
   assert.doesNotMatch(page, /outerwear|accessory|Capa|Accesorio/);
   assert.doesNotMatch(page, /Notas de estilo|Catalogo de tres piezas|Moodboard|Referencias visuales/);
@@ -54,6 +55,8 @@ test("the outfit app source contains the primary product experience", async () =
   assert.match(importRoute, /Massimo Dutti/);
   assert.match(importRoute, /titleFromUrl/);
   assert.match(importRoute, /fallbackProductImage/);
+  assert.match(importRoute, /readReadableFallback/);
+  assert.match(importRoute, /extractMarkdownImageUrls/);
   assert.match(importRoute, /data:\$\{contentType\};base64/);
   assert.match(importRoute, /data:image\/svg\+xml;base64/);
   assert.match(layout, /lang="es"/);
