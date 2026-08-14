@@ -48,6 +48,9 @@ test("the outfit app source contains the primary product experience", async () =
   assert.match(importRoute, /product:price:amount/);
   assert.match(importRoute, /product:brand/);
   assert.match(importRoute, /confidence/);
+  assert.match(importRoute, /isBlockedPage/);
+  assert.match(importRoute, /Massimo Dutti/);
+  assert.match(importRoute, /titleFromUrl/);
   assert.match(importRoute, /data:\$\{contentType\};base64/);
   assert.match(layout, /lang="es"/);
   assert.match(packageJson, /"build": "next build --webpack"/);

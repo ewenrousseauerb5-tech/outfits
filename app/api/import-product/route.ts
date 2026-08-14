@@ -12,6 +12,15 @@ const currencySymbols: Record<string, string> = {
   "£": "GBP",
 };
 
+const hostBrands: Array<[RegExp, string]> = [
+  [/massimodutti/i, "Massimo Dutti"],
+  [/zara/i, "Zara"],
+  [/pullandbear/i, "Pull&Bear"],
+  [/bershka/i, "Bershka"],
+  [/stradivarius/i, "Stradivarius"],
+  [/oysho/i, "Oysho"],
+];
+
 function cleanText(value?: string | null) {
   return value
     ?.replace(/&amp;/g, "&")
@@ -70,6 +79,32 @@ function pickTitle(html: string) {
     pickMeta(html, ["og:title", "twitter:title", "title", "name"])
       ?? html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1],
   );
+}
+
+function brandFromHost(host: string) {
+  return hostBrands.find(([pattern]) => pattern.test(host))?.[1];
+}
+
+function titleFromUrl(productUrl: URL) {
+  const parts = productUrl.pathname.split("/").filter(Boolean);
+  const slug =
+    [...parts].reverse().find((part) => /^.+-l\d+/i.test(part))
+    ?? parts.at(-1)
+    ?? productUrl.hostname;
+
+  const title = decodeURIComponent(slug)
+    .replace(/^.*\/|[?#].*$/g, "")
+    .replace(/-l\d+.*/i, "")
+    .replace(/\.[a-z0-9]+$/i, "")
+    .replace(/[-_+]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return cleanText(title.replace(/\b\w/g, (letter) => letter.toUpperCase()));
+}
+
+function isBlockedPage(html: string) {
+  return /access denied|errors\.edgesuite\.net|akamai/i.test(html);
 }
 
 function normalizeImage(value: unknown): string | undefined {
@@ -486,14 +521,37 @@ export async function POST(request: NextRequest) {
 
     const html = await response.text();
     const baseUrl = response.url || productUrl.toString();
+    const sourceHost = productUrl.hostname.replace(/^www\./, "");
+
+    if (isBlockedPage(html)) {
+      const fallbackTitle = titleFromUrl(productUrl);
+      const fallbackBrand = brandFromHost(sourceHost);
+
+      return NextResponse.json({
+        ok: true,
+        title: fallbackTitle,
+        brand: fallbackBrand,
+        sourceHost,
+        confidence: "low",
+        fields: ["title", fallbackBrand && "brand"].filter(Boolean),
+        imageCandidates: [],
+        images: [],
+        error: "La tienda bloqueo la importacion directa de imagenes.",
+      });
+    }
+
     const products = [...readJsonLdProducts(html), ...readJsonScriptProducts(html)];
     const data = productData(products);
     const money = extractMoney(html);
 
-    const title = data.title || pickTitle(html);
+    const parsedTitle = data.title || pickTitle(html);
+    const title = parsedTitle && !/^access denied$/i.test(parsedTitle)
+      ? parsedTitle
+      : titleFromUrl(productUrl);
     const brand =
       data.brand
-      || pickMeta(html, ["product:brand", "og:brand", "brand", "manufacturer", "twitter:label1"]);
+      || pickMeta(html, ["product:brand", "og:brand", "brand", "manufacturer", "twitter:label1"])
+      || brandFromHost(sourceHost);
     const description =
       data.description || pickMeta(html, ["og:description", "twitter:description", "description"]);
     const price = data.price || money.price;
@@ -542,7 +600,7 @@ export async function POST(request: NextRequest) {
       availability,
       color,
       sku,
-      sourceHost: productUrl.hostname.replace(/^www\./, ""),
+      sourceHost,
       confidence: confidence(fields, imageCandidates.length),
       fields,
       image,
