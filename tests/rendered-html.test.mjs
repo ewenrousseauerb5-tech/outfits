@@ -17,13 +17,15 @@ test("the outfit app source contains the primary product experience", async () =
     "utf8",
   );
 
-  assert.match(page, /Tu armario convertido en sistema/);
+  assert.match(page, /Looks de trabajo sin pensarlo/);
+  assert.match(page, /Armario de oficina/);
   assert.match(page, /Parte de arriba/);
   assert.match(page, /Parte de abajo/);
   assert.match(page, /Zapatos/);
-  assert.match(page, /Output/);
-  assert.match(page, /Input/);
-  assert.match(page, /Importa por fotos o links/);
+  assert.match(page, /Look recomendado/);
+  assert.match(page, /Anadir prendas/);
+  assert.match(page, /Fotos o enlaces de tienda/);
+  assert.match(page, /Mi armario/);
   assert.match(page, /Enlaces de tienda/);
   assert.match(page, /OutfitBoard/);
   assert.match(page, /Composicion del outfit/);

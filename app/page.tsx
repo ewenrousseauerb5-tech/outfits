@@ -65,17 +65,17 @@ const starterWardrobe: Garment[] = [
     season: "all",
     formality: 4,
     favorite: true,
-    notes: "Base limpia para oficina, cenas y looks pulidos.",
+    notes: "Camisa base para oficina y reuniones.",
   },
   {
     id: "g-2",
-    name: "Camiseta negra premium",
+    name: "Camiseta negra lisa",
     category: "top",
     color: "black",
     season: "all",
     formality: 2,
     favorite: false,
-    notes: "Funciona para looks simples con buena silueta.",
+    notes: "Para dias de oficina mas informales.",
   },
   {
     id: "g-3",
@@ -85,7 +85,7 @@ const starterWardrobe: Garment[] = [
     season: "all",
     formality: 4,
     favorite: true,
-    notes: "Mas elegante que un vaquero, sin ser traje.",
+    notes: "Pantalon facil para oficina sin traje.",
   },
   {
     id: "g-4",
@@ -95,7 +95,7 @@ const starterWardrobe: Garment[] = [
     season: "all",
     formality: 2,
     favorite: false,
-    notes: "Para dias relajados y combinaciones limpias.",
+    notes: "Opcion informal para viernes o dias tranquilos.",
   },
   {
     id: "g-5",
@@ -105,7 +105,7 @@ const starterWardrobe: Garment[] = [
     season: "all",
     formality: 4,
     favorite: true,
-    notes: "Suben el nivel sin esfuerzo.",
+    notes: "Zapato de oficina para looks mas formales.",
   },
   {
     id: "g-6",
@@ -115,7 +115,7 @@ const starterWardrobe: Garment[] = [
     season: "all",
     formality: 2,
     favorite: false,
-    notes: "Comodas, neutras y faciles.",
+    notes: "Opcion comoda para oficina informal.",
   },
 ];
 
@@ -530,7 +530,7 @@ function OutfitBoard({
 
 export default function Home() {
   const [wardrobe, setWardrobe] = useState<Garment[]>(starterWardrobe);
-  const [occasion, setOccasion] = useState<Occasion>("office");
+  const occasion: Occasion = "office";
   const [season, setSeason] = useState<Season>("all");
   const [intent, setIntent] = useState<Intent>("minimal");
   const [importDrafts, setImportDrafts] = useState<
@@ -802,12 +802,9 @@ export default function Home() {
     <main className="app-shell">
       <section className="hero-panel" aria-label="Generador profesional de outfits">
         <div>
-          <p className="eyebrow">Outfit engine</p>
-          <h1>Tu armario convertido en sistema.</h1>
-          <p>
-            Importa prendas con fotos o enlaces. El motor cruza arriba, abajo y
-            zapatos para proponerte looks limpios, modernos y sin friccion.
-          </p>
+          <p className="eyebrow">Armario de oficina</p>
+          <h1>Looks de trabajo sin pensarlo.</h1>
+          <p>Combina parte de arriba, parte de abajo y zapatos para salir listo por la manana.</p>
         </div>
         <div className="studio-stats" aria-label="Estado del armario">
           {allowedCategories.map((category) => (
@@ -820,19 +817,6 @@ export default function Home() {
       </section>
 
       <section className="planner-bar" aria-label="Preferencias del look">
-        <label>
-          Ocasion
-          <select
-            value={occasion}
-            onChange={(event) => setOccasion(event.target.value as Occasion)}
-          >
-            {Object.entries(occasionLabels).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </label>
         <label>
           Temporada
           <select
@@ -847,7 +831,7 @@ export default function Home() {
           </select>
         </label>
         <label>
-          Direccion
+          Estilo
           <select
             value={intent}
             onChange={(event) => setIntent(event.target.value as Intent)}
@@ -864,10 +848,9 @@ export default function Home() {
       <section className="look-section" aria-label="Look seleccionado">
         <div className="section-heading">
           <div>
-          <p className="eyebrow">Output</p>
+            <p className="eyebrow">Look recomendado</p>
             <h2>{displayedOutfit?.title ?? "Anade mas prendas"}</h2>
           </div>
-          {displayedOutfit && <span className="score-pill">{Math.round(displayedOutfit.score)} pts</span>}
         </div>
 
         <div className="look-layout">
@@ -942,8 +925,8 @@ export default function Home() {
       <section className="workspace-grid single" aria-label="Anadir prendas">
         <div className="tool-panel">
           <div className="section-heading compact">
-            <p className="eyebrow">Input</p>
-            <h2>Importa por fotos o links.</h2>
+            <p className="eyebrow">Anadir prendas</p>
+            <h2>Fotos o enlaces de tienda.</h2>
           </div>
           <form className="import-form" onSubmit={importGarments}>
             {allowedCategories.map((category) => (
@@ -1017,7 +1000,7 @@ export default function Home() {
               Importar al armario
             </button>
             <button className="secondary-action" type="button" onClick={() => repairImportedImages()}>
-              Reparar fotos de enlaces
+              Reparar fotos
             </button>
             {importStatus && <p className="import-status">{importStatus}</p>}
           </form>
@@ -1027,8 +1010,8 @@ export default function Home() {
       <section className="closet-section" aria-label="Inventario">
         <div className="section-heading">
           <div>
-            <p className="eyebrow">Database</p>
-            <h2>{wardrobe.length} prendas en rotacion.</h2>
+            <p className="eyebrow">Mi armario</p>
+            <h2>{wardrobe.length} prendas guardadas.</h2>
           </div>
         </div>
         <div className="closet-grid">
