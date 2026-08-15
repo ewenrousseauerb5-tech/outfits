@@ -631,6 +631,14 @@ export default function Home() {
     }
 
     setWardrobe((items) => [...imported, ...items]);
+    setPieceOverrides((current) => {
+      const next = { ...current };
+      for (const category of allowedCategories) {
+        const newest = imported.find((item) => item.category === category);
+        if (newest) next[category] = newest.id;
+      }
+      return next;
+    });
     setImportDrafts({
       top: { images: [], links: "" },
       bottom: { images: [], links: "" },
