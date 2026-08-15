@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
 type Category = "top" | "bottom" | "shoes";
 type Occasion = "office" | "casual" | "dinner" | "travel";
@@ -219,6 +219,15 @@ function getImages(item: { image?: string; images?: string[] }) {
 
 function getPrimaryImage(item: { image?: string; images?: string[] }) {
   return getImages(item)[0];
+}
+
+function needsImageRepair(item: Garment) {
+  const image = getPrimaryImage(item);
+  return Boolean(
+    item.productUrl
+      && /massimodutti/i.test(item.productUrl)
+      && (!image || image.startsWith("data:image/svg+xml") || image.startsWith("http")),
+  );
 }
 
 function readImages(
@@ -534,6 +543,7 @@ export default function Home() {
   const [selectedOutfitIndex, setSelectedOutfitIndex] = useState(0);
   const [pieceOverrides, setPieceOverrides] = useState<Partial<Record<Category, string>>>({});
   const [hydrated, setHydrated] = useState(false);
+  const autoRepairDone = useRef(false);
   const [importStatus, setImportStatus] = useState("");
 
   useEffect(() => {
@@ -660,6 +670,85 @@ export default function Home() {
     );
     setImportStatus("Foto anadida a la prenda.");
   }
+
+  async function repairImportedImages(items = wardrobe.filter(needsImageRepair)) {
+    if (!items.length) {
+      setImportStatus("No hay prendas pendientes de reparar.");
+      return;
+    }
+
+    setImportStatus(`Reparando fotos de ${items.length} prendas...`);
+    const refreshed = await Promise.all(
+      items.map(async (item) => ({
+        id: item.id,
+        garment: await importProductLink(item.category, item.productUrl ?? "", 0),
+      })),
+    );
+
+    setWardrobe((currentItems) =>
+      currentItems.map((item) => {
+        const match = refreshed.find((entry) => entry.id === item.id)?.garment;
+        if (!match) return item;
+
+        const nextImages = match.images?.length ? match.images : item.images;
+        return {
+          ...item,
+          name: match.name || item.name,
+          image: nextImages?.[0] || item.image,
+          images: nextImages,
+          brand: match.brand || item.brand,
+          price: match.price || item.price,
+          currency: match.currency || item.currency,
+          importConfidence: match.importConfidence || item.importConfidence,
+          importFields: match.importFields?.length ? match.importFields : item.importFields,
+          notes: match.notes || item.notes,
+        };
+      }),
+    );
+    setImportStatus("Fotos reparadas. Si alguna sigue sin imagen, pega la URL directa de la foto o usa el boton Foto.");
+  }
+
+  useEffect(() => {
+    if (!hydrated || autoRepairDone.current) return;
+    autoRepairDone.current = true;
+
+    const repairable = wardrobe.filter(needsImageRepair);
+    if (!repairable.length) return;
+
+    queueMicrotask(() => {
+      void (async () => {
+        setImportStatus(`Reparando fotos de ${repairable.length} prendas...`);
+        const refreshed = await Promise.all(
+          repairable.map(async (item) => ({
+            id: item.id,
+            garment: await importProductLink(item.category, item.productUrl ?? "", 0),
+          })),
+        );
+
+        setWardrobe((currentItems) =>
+          currentItems.map((item) => {
+            const match = refreshed.find((entry) => entry.id === item.id)?.garment;
+            if (!match) return item;
+
+            const nextImages = match.images?.length ? match.images : item.images;
+            return {
+              ...item,
+              name: match.name || item.name,
+              image: nextImages?.[0] || item.image,
+              images: nextImages,
+              brand: match.brand || item.brand,
+              price: match.price || item.price,
+              currency: match.currency || item.currency,
+              importConfidence: match.importConfidence || item.importConfidence,
+              importFields: match.importFields?.length ? match.importFields : item.importFields,
+              notes: match.notes || item.notes,
+            };
+          }),
+        );
+        setImportStatus("Fotos reparadas.");
+      })();
+    });
+  }, [hydrated, wardrobe]);
 
   async function refreshGarment(id: string) {
     const current = wardrobe.find((item) => item.id === id);
@@ -918,6 +1007,9 @@ export default function Home() {
             ))}
             <button className="primary-action" type="submit">
               Importar al armario
+            </button>
+            <button className="secondary-action" type="button" onClick={() => repairImportedImages()}>
+              Reparar fotos de enlaces
             </button>
             {importStatus && <p className="import-status">{importStatus}</p>}
           </form>
