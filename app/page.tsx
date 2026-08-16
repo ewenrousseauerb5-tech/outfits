@@ -3,6 +3,7 @@
 import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
 type Category = "top" | "bottom" | "shoes";
+type GarmentKind = "tshirt" | "shirt" | "sweater" | "sweatshirt" | "jacket" | "pants" | "jeans" | "shoes";
 type Occasion = "office" | "casual" | "dinner" | "travel";
 type Intent = "minimal" | "smart" | "relaxed";
 type Season = "all" | "warm" | "mild" | "cold";
@@ -11,6 +12,7 @@ type Garment = {
   id: string;
   name: string;
   category: Category;
+  kind?: GarmentKind;
   color: string;
   season: Season;
   formality: number;
@@ -58,11 +60,33 @@ type Outfit = {
 
 const allowedCategories: Category[] = ["top", "bottom", "shoes"];
 
+const garmentKinds: Array<{ value: GarmentKind; label: string; category: Category }> = [
+  { value: "shirt", label: "Camisa", category: "top" },
+  { value: "tshirt", label: "Camiseta", category: "top" },
+  { value: "sweater", label: "Jersey", category: "top" },
+  { value: "sweatshirt", label: "Sudadera", category: "top" },
+  { value: "jacket", label: "Chaqueta", category: "top" },
+  { value: "pants", label: "Pantalon", category: "bottom" },
+  { value: "jeans", label: "Vaquero", category: "bottom" },
+  { value: "shoes", label: "Zapatos", category: "shoes" },
+];
+
+const kindLabels = garmentKinds.reduce(
+  (labels, kind) => ({ ...labels, [kind.value]: kind.label }),
+  {} as Record<GarmentKind, string>,
+);
+
+const kindCategories = garmentKinds.reduce(
+  (categories, kind) => ({ ...categories, [kind.value]: kind.category }),
+  {} as Record<GarmentKind, Category>,
+);
+
 const starterWardrobe: Garment[] = [
   {
     id: "g-1",
     name: "Camisa blanca Oxford",
     category: "top",
+    kind: "shirt",
     color: "white",
     season: "all",
     formality: 4,
@@ -73,6 +97,7 @@ const starterWardrobe: Garment[] = [
     id: "g-2",
     name: "Camiseta negra lisa",
     category: "top",
+    kind: "tshirt",
     color: "black",
     season: "all",
     formality: 2,
@@ -83,6 +108,7 @@ const starterWardrobe: Garment[] = [
     id: "g-3",
     name: "Pantalon azul marino",
     category: "bottom",
+    kind: "pants",
     color: "navy",
     season: "all",
     formality: 4,
@@ -93,6 +119,7 @@ const starterWardrobe: Garment[] = [
     id: "g-4",
     name: "Vaquero recto claro",
     category: "bottom",
+    kind: "jeans",
     color: "blue",
     season: "all",
     formality: 2,
@@ -103,6 +130,7 @@ const starterWardrobe: Garment[] = [
     id: "g-5",
     name: "Mocasines marron oscuro",
     category: "shoes",
+    kind: "shoes",
     color: "brown",
     season: "all",
     formality: 4,
@@ -113,6 +141,7 @@ const starterWardrobe: Garment[] = [
     id: "g-6",
     name: "Zapatillas blancas",
     category: "shoes",
+    kind: "shoes",
     color: "white",
     season: "all",
     formality: 2,
@@ -193,6 +222,7 @@ function normalizeGarments(value: unknown): Garment[] {
       id: item.id ?? `g-${crypto.randomUUID()}`,
       name: item.name ?? "Prenda sin nombre",
       category: item.category as Category,
+      kind: item.kind && item.kind in kindLabels ? item.kind as GarmentKind : undefined,
       color: item.color ?? "white",
       season: item.season ?? "all",
       formality: item.formality ?? 3,
@@ -307,6 +337,7 @@ function formatPrice(price?: string, currency?: string) {
 
 function createImportedGarment({
   category,
+  kind,
   image,
   images,
   source,
@@ -324,6 +355,7 @@ function createImportedGarment({
   index,
 }: {
   category: Category;
+  kind?: GarmentKind;
   image?: string;
   images?: string[];
   source?: string;
@@ -340,11 +372,12 @@ function createImportedGarment({
   fields?: string[];
   index: number;
 }): Garment {
-  const basis = [title, source, color, brand, description, `${categoryShortLabels[category]} foto ${index + 1}`]
+  const kindLabel = kind ? kindLabels[kind] : categoryLabels[category];
+  const basis = [title, source, color, brand, description, `${kindLabel} foto ${index + 1}`]
     .filter(Boolean)
     .join(" ");
   const name = title?.trim()
-    || (source ? titleFromUrl(source, category) : `${categoryLabels[category]} importada ${index + 1}`);
+    || (source ? titleFromUrl(source, category) : `${kindLabel} importada ${index + 1}`);
   const gallery = images?.length ? images : image ? [image] : [];
   const metadata = [
     brand && `Marca: ${brand}`,
@@ -357,6 +390,7 @@ function createImportedGarment({
     id: `g-${Date.now()}-${category}-${index}-${Math.random().toString(16).slice(2)}`,
     name,
     category,
+    kind,
     color: inferColor(basis, category),
     season: "all",
     formality: inferFormality(basis, category),
@@ -382,7 +416,7 @@ function createImportedGarment({
   };
 }
 
-async function importProductLink(category: Category, source: string, index: number) {
+async function importProductLink(category: Category, source: string, index: number, kind?: GarmentKind) {
   try {
     const response = await fetch("/api/import-product", {
       method: "POST",
@@ -393,6 +427,7 @@ async function importProductLink(category: Category, source: string, index: numb
     const data = (await response.json()) as ProductImport;
     const garment = createImportedGarment({
       category,
+      kind,
       source,
       index,
       title: data.title,
@@ -419,7 +454,7 @@ async function importProductLink(category: Category, source: string, index: numb
 
     return garment;
   } catch {
-    return createImportedGarment({ category, source, index });
+    return createImportedGarment({ category, kind, source, index });
   }
 }
 
@@ -570,7 +605,7 @@ function OutfitBoard({
               <span className="callout-copy">
                 <strong>{categoryLabels[category]}</strong>
                 <em>{piece.name}</em>
-                <small>{piece.color}</small>
+                <small>{[piece.kind ? kindLabels[piece.kind] : categoryShortLabels[category], piece.color].join(" · ")}</small>
               </span>
             </button>
           </article>
@@ -585,12 +620,10 @@ export default function Home() {
   const occasion: Occasion = "office";
   const [season, setSeason] = useState<Season>("all");
   const [intent, setIntent] = useState<Intent>("minimal");
-  const [importDrafts, setImportDrafts] = useState<
-    Record<Category, { images: string[]; links: string }>
-  >({
-    top: { images: [], links: "" },
-    bottom: { images: [], links: "" },
-    shoes: { images: [], links: "" },
+  const [importDraft, setImportDraft] = useState<{ kind: GarmentKind; images: string[]; links: string }>({
+    kind: "shirt",
+    images: [],
+    links: "",
   });
   const [selectedOutfitIndex, setSelectedOutfitIndex] = useState(0);
   const [pieceOverrides, setPieceOverrides] = useState<Partial<Record<Category, string>>>({});
@@ -651,29 +684,24 @@ export default function Home() {
   async function importGarments(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setImportStatus("Importando prendas...");
+    const category = kindCategories[importDraft.kind];
 
-    const photoImports = allowedCategories.flatMap((category) => {
-      const draft = importDrafts[category];
-      return draft.images.map((image, index) =>
-        createImportedGarment({ category, image, index }),
-      );
-    });
-
-    const linkInputs = allowedCategories.flatMap((category) => {
-      const draft = importDrafts[category];
-      return draft.links
-        .split(/\n|,/)
-        .map((link) => link.trim())
-        .filter(Boolean)
-        .map((source, index) => ({
-          category,
-          source,
-          index: draft.images.length + index,
-        }));
-    });
+    const photoImports = importDraft.images.map((image, index) =>
+      createImportedGarment({ category, kind: importDraft.kind, image, index }),
+    );
+    const linkInputs = importDraft.links
+      .split(/\n|,/)
+      .map((link) => link.trim())
+      .filter(Boolean)
+      .map((source, index) => ({
+        category,
+        kind: importDraft.kind,
+        source,
+        index: importDraft.images.length + index,
+      }));
 
     const linkImports = await Promise.all(
-      linkInputs.map((item) => importProductLink(item.category, item.source, item.index)),
+      linkInputs.map((item) => importProductLink(item.category, item.source, item.index, item.kind)),
     );
     const imported = [...photoImports, ...linkImports];
 
@@ -691,11 +719,7 @@ export default function Home() {
       }
       return next;
     });
-    setImportDrafts({
-      top: { images: [], links: "" },
-      bottom: { images: [], links: "" },
-      shoes: { images: [], links: "" },
-    });
+    setImportDraft((draft) => ({ ...draft, images: [], links: "" }));
     const withImages = imported.filter((item) => getPrimaryImage(item)).length;
     setImportStatus(`${imported.length} prendas importadas · ${withImages} con imagen.`);
   }
@@ -741,7 +765,7 @@ export default function Home() {
     const refreshed = await Promise.all(
       items.map(async (item) => ({
         id: item.id,
-        garment: await importProductLink(item.category, item.productUrl ?? "", 0),
+        garment: await importProductLink(item.category, item.productUrl ?? "", 0, item.kind),
       })),
     );
 
@@ -781,7 +805,7 @@ export default function Home() {
         const refreshed = await Promise.all(
           repairable.map(async (item) => ({
             id: item.id,
-            garment: await importProductLink(item.category, item.productUrl ?? "", 0),
+            garment: await importProductLink(item.category, item.productUrl ?? "", 0, item.kind),
           })),
         );
 
@@ -815,7 +839,7 @@ export default function Home() {
     if (!current?.productUrl) return;
 
     setImportStatus(`Actualizando ${current.name}...`);
-    const refreshed = await importProductLink(current.category, current.productUrl, 0);
+    const refreshed = await importProductLink(current.category, current.productUrl, 0, current.kind);
     setWardrobe((items) =>
       items.map((item) =>
         item.id === id
@@ -934,7 +958,7 @@ export default function Home() {
                         )}
                       </div>
                       <div>
-                        <p>{categoryLabels[piece.category]}</p>
+                        <p>{piece.kind ? kindLabels[piece.kind] : categoryLabels[piece.category]}</p>
                         <h3>{piece.name}</h3>
                         <small>{piece.color}</small>
                         {piece.productUrl && (
@@ -987,73 +1011,80 @@ export default function Home() {
             <h2>Fotos o enlaces de tienda.</h2>
           </div>
           <form className="import-form" onSubmit={importGarments}>
-            {allowedCategories.map((category) => (
-              <section className="import-lane" key={category}>
-                <div className="import-lane-header">
-                  <div>
-                    <p>{categoryLabels[category]}</p>
-                    <strong>{categoryShortLabels[category]}</strong>
-                  </div>
-                  <span>
-                    {importDrafts[category].images.length} fotos ·{" "}
-                    {
-                      importDrafts[category].links
-                        .split(/\n|,/)
-                        .map((link) => link.trim())
-                        .filter(Boolean).length
-                    }{" "}
-                    enlaces
-                  </span>
+            <section className="import-lane">
+              <div className="import-lane-header">
+                <div>
+                  <p>Tipo de prenda</p>
+                  <strong>{kindLabels[importDraft.kind]}</strong>
                 </div>
-                <label className="drop-control">
-                  Fotos
-                  <input
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    onChange={(event) =>
-                      readImages(event, (images) =>
-                        setImportDrafts((drafts) => ({
-                          ...drafts,
-                          [category]: {
-                            ...drafts[category],
-                            images: [...drafts[category].images, ...images],
-                          },
-                        })),
-                      )
-                    }
-                  />
-                </label>
-                {importDrafts[category].images.length > 0 && (
-                  <div className="upload-preview compact" aria-label={`${categoryLabels[category]} cargadas`}>
-                    {importDrafts[category].images.map((image, index) => (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={image}
-                        alt={`${categoryLabels[category]} ${index + 1}`}
-                        key={`${image}-${index}`}
-                      />
-                    ))}
-                  </div>
-                )}
-                <label>
-                  Enlaces de tienda
-                  <textarea
-                    placeholder="Pega enlaces de tienda o enlaces directos de imagen, uno por linea"
-                    value={importDrafts[category].links}
-                    onChange={(event) =>
-                      setImportDrafts((drafts) => ({
-                        ...drafts,
-                        [category]: {
-                          ...drafts[category],
-                          links: event.target.value,
-                        },
-                      }))
-                    }
-                  />
-                </label>
-              </section>
-            ))}
+                <span>
+                  {importDraft.images.length} fotos ·{" "}
+                  {
+                    importDraft.links
+                      .split(/\n|,/)
+                      .map((link) => link.trim())
+                      .filter(Boolean).length
+                  }{" "}
+                  enlaces
+                </span>
+              </div>
+              <label>
+                Prenda
+                <select
+                  value={importDraft.kind}
+                  onChange={(event) =>
+                    setImportDraft((draft) => ({ ...draft, kind: event.target.value as GarmentKind }))
+                  }
+                >
+                  {garmentKinds.map((kind) => (
+                    <option key={kind.value} value={kind.value}>
+                      {kind.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="drop-control">
+                Fotos
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={(event) =>
+                    readImages(event, (images) =>
+                      setImportDraft((draft) => ({
+                        ...draft,
+                        images: [...draft.images, ...images],
+                      })),
+                    )
+                  }
+                />
+              </label>
+              {importDraft.images.length > 0 && (
+                <div className="upload-preview compact" aria-label={`${kindLabels[importDraft.kind]} cargadas`}>
+                  {importDraft.images.map((image, index) => (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={image}
+                      alt={`${kindLabels[importDraft.kind]} ${index + 1}`}
+                      key={`${image}-${index}`}
+                    />
+                  ))}
+                </div>
+              )}
+              <label>
+                Enlaces de tienda
+                <textarea
+                  placeholder="Pega enlaces de tienda o enlaces directos de imagen, uno por linea"
+                  value={importDraft.links}
+                  onChange={(event) =>
+                    setImportDraft((draft) => ({
+                      ...draft,
+                      links: event.target.value,
+                    }))
+                  }
+                />
+              </label>
+            </section>
             <button className="primary-action" type="submit">
               Importar al armario
             </button>
@@ -1088,7 +1119,7 @@ export default function Home() {
                 </div>
                 <div className="garment-info">
                   <label className="name-editor">
-                    <span>{categoryLabels[garment.category]}</span>
+                    <span>{garment.kind ? kindLabels[garment.kind] : categoryLabels[garment.category]}</span>
                     <input
                       aria-label={`Nombre de ${garment.name}`}
                       value={garment.name}
