@@ -516,9 +516,7 @@ function OutfitBoard({
               <span className="callout-copy">
                 <strong>{categoryLabels[category]}</strong>
                 <em>{piece.name}</em>
-                {(piece.brand || piece.price) && (
-                  <small>{[piece.brand, formatPrice(piece.price, piece.currency)].filter(Boolean).join(" · ")}</small>
-                )}
+                <small>{piece.color}</small>
               </span>
             </button>
           </article>
@@ -652,10 +650,10 @@ export default function Home() {
     setWardrobe((items) => items.filter((item) => item.id !== id));
   }
 
-  function toggleFavorite(id: string) {
+  function renameGarment(id: string, name: string) {
     setWardrobe((items) =>
       items.map((item) =>
-        item.id === id ? { ...item, favorite: !item.favorite } : item,
+        item.id === id ? { ...item, name: name || "Prenda sin nombre" } : item,
       ),
     );
   }
@@ -884,14 +882,7 @@ export default function Home() {
                       <div>
                         <p>{categoryLabels[piece.category]}</p>
                         <h3>{piece.name}</h3>
-                        {(piece.brand || piece.price) && (
-                          <p className="commerce-line">
-                            {[piece.brand, formatPrice(piece.price, piece.currency)].filter(Boolean).join(" · ")}
-                          </p>
-                        )}
-                        <small>
-                          {piece.color} · formalidad {piece.formality}/5
-                        </small>
+                        <small>{piece.color}</small>
                         {piece.productUrl && (
                           <a href={piece.productUrl} target="_blank" rel="noreferrer">
                             Ver fuente
@@ -1030,32 +1021,23 @@ export default function Home() {
                 </div>
                 <div className="garment-info">
                   <p>{categoryLabels[garment.category]}</p>
-                  <h3>{garment.name}</h3>
-                  {(garment.brand || garment.price) && (
-                    <p className="commerce-line">
-                      {[garment.brand, formatPrice(garment.price, garment.currency)].filter(Boolean).join(" · ")}
-                    </p>
+                  <label className="name-editor">
+                    Nombre
+                    <input
+                      aria-label={`Nombre de ${garment.name}`}
+                      value={garment.name}
+                      onChange={(event) => renameGarment(garment.id, event.target.value)}
+                    />
+                  </label>
+                  <small>{garment.color}</small>
+                  {garment.productUrl && (
+                    <a href={garment.productUrl} target="_blank" rel="noreferrer">
+                      Fuente
+                    </a>
                   )}
-                  <small>
-                    {garment.color} · nivel {garment.formality}/5
-                  </small>
-                  {garment.notes && <p className="notes">{garment.notes}</p>}
-                  <div className="garment-meta">
-                    {imageCount > 1 && <span>{imageCount} fotos</span>}
-                    {garment.sourceHost && <span>{garment.sourceHost}</span>}
-                    {garment.importConfidence && <span>Import {garment.importConfidence}</span>}
-                    {garment.favorite && <span>Favorita</span>}
-                    {garment.productUrl && (
-                      <a href={garment.productUrl} target="_blank" rel="noreferrer">
-                        Fuente
-                      </a>
-                    )}
-                  </div>
+                  {imageCount > 1 && <span className="photo-count">{imageCount} fotos</span>}
                 </div>
                 <div className="garment-actions">
-                  <button type="button" onClick={() => toggleFavorite(garment.id)}>
-                    {garment.favorite ? "Favorita" : "Marcar"}
-                  </button>
                   <label className="image-action">
                     Foto
                     <input
