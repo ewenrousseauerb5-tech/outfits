@@ -738,7 +738,8 @@ textarea:focus {
   padding: 10px 2px 8px;
 }
 
-.name-editor span {
+.name-editor span,
+.color-editor {
   color: var(--cyan);
   font-size: 0.68rem;
   font-weight: 900;
@@ -750,11 +751,13 @@ textarea:focus {
   color: var(--muted);
 }
 
-.name-editor {
+.name-editor,
+.color-editor {
   gap: 5px;
 }
 
-.name-editor input {
+.name-editor input,
+.color-editor input {
   min-height: 30px;
   border-color: transparent;
   background: transparent;
@@ -764,9 +767,16 @@ textarea:focus {
   padding: 0;
 }
 
-.name-editor input:focus {
+.name-editor input:focus,
+.color-editor input:focus {
   background: #ffffff;
   padding: 0 6px;
+}
+
+.color-editor input {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
 }
 
 .product-description,

@@ -744,6 +744,14 @@ export default function Home() {
     );
   }
 
+  function updateGarmentColor(id: string, color: string) {
+    setWardrobe((items) =>
+      items.map((item) =>
+        item.id === id ? { ...item, color: color.trim().toLowerCase() || "white" } : item,
+      ),
+    );
+  }
+
   function attachImagesToGarment(id: string, images: string[]) {
     if (!images.length) return;
 
@@ -1134,9 +1142,16 @@ export default function Home() {
                       onChange={(event) => renameGarment(garment.id, event.target.value)}
                     />
                   </label>
+                  <label className="color-editor">
+                    Color
+                    <input
+                      aria-label={`Color de ${garment.name}`}
+                      value={garment.color}
+                      onChange={(event) => updateGarmentColor(garment.id, event.target.value)}
+                    />
+                  </label>
                   <p className="product-description">
-                    {garment.color}
-                    {imageCount > 1 ? ` · ${imageCount} fotos` : ""}
+                    {imageCount > 1 ? `${imageCount} fotos` : "1 foto"}
                     {garment.productUrl ? " · tienda" : ""}
                   </p>
                 </div>
