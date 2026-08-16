@@ -286,7 +286,7 @@ textarea:focus {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
-  min-height: 420px;
+  min-height: 390px;
   overflow: hidden;
   background: linear-gradient(180deg, #ffffff, #f8f8f5);
   padding: 18px;
@@ -294,7 +294,7 @@ textarea:focus {
 
 .floating-piece {
   display: grid;
-  grid-template-rows: minmax(250px, 1fr) auto;
+  grid-template-rows: 260px auto;
   align-items: stretch;
   gap: 12px;
   min-height: 0;
@@ -308,8 +308,8 @@ textarea:focus {
   display: grid;
   place-items: center;
   width: 100%;
-  height: 100%;
-  min-height: 250px;
+  height: 260px;
+  min-height: 260px;
   max-height: none;
   overflow: hidden;
   border-radius: 8px;
@@ -318,11 +318,28 @@ textarea:focus {
 }
 
 .floating-image img {
-  width: 100%;
-  height: 100%;
+  width: auto;
+  height: auto;
+  max-width: 86%;
+  max-height: 88%;
   object-fit: contain;
   object-position: center;
-  padding: 10px;
+  padding: 0;
+}
+
+.floating-piece-top .floating-image img {
+  max-width: 78%;
+  max-height: 82%;
+}
+
+.floating-piece-bottom .floating-image img {
+  max-width: 72%;
+  max-height: 88%;
+}
+
+.floating-piece-shoes .floating-image img {
+  max-width: 82%;
+  max-height: 56%;
 }
 
 .floating-image span {
@@ -889,12 +906,13 @@ textarea:focus {
   }
 
   .floating-piece {
-    grid-template-rows: minmax(220px, 1fr) auto;
+    grid-template-rows: 220px auto;
     gap: 10px;
     padding: 10px;
   }
 
   .floating-image {
+    height: 220px;
     min-height: 220px;
   }
 
