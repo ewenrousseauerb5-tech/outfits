@@ -120,7 +120,7 @@ const starterWardrobe: Garment[] = [
     name: "Vaquero recto claro",
     category: "bottom",
     kind: "jeans",
-    color: "blue",
+    color: "stone",
     season: "all",
     formality: 2,
     favorite: false,
@@ -131,7 +131,7 @@ const starterWardrobe: Garment[] = [
     name: "Mocasines marron oscuro",
     category: "shoes",
     kind: "shoes",
-    color: "brown",
+    color: "black",
     season: "all",
     formality: 4,
     favorite: true,
@@ -183,17 +183,18 @@ const targetFormality: Record<Occasion, number> = {
 };
 
 const compatibleColors: Record<string, string[]> = {
-  black: ["white", "gray", "blue", "navy", "brown"],
-  white: ["black", "navy", "blue", "gray", "brown", "olive"],
-  navy: ["white", "gray", "brown", "blue"],
-  blue: ["white", "black", "gray", "brown", "navy"],
-  gray: ["white", "black", "navy", "blue"],
-  brown: ["white", "navy", "blue", "black", "olive"],
+  black: ["white", "gray", "blue", "navy", "brown", "stone"],
+  white: ["black", "navy", "blue", "gray", "brown", "olive", "stone"],
+  navy: ["white", "gray", "brown", "blue", "stone"],
+  blue: ["white", "black", "gray", "brown", "navy", "stone"],
+  gray: ["white", "black", "navy", "blue", "stone"],
+  brown: ["white", "navy", "blue", "black", "olive", "stone"],
   olive: ["white", "black", "navy", "brown"],
+  stone: ["white", "black", "navy", "brown", "blue", "gray"],
 };
 
-const neutralColors = ["white", "black", "navy", "gray", "brown"];
-const lightColors = ["white", "gray"];
+const neutralColors = ["white", "black", "navy", "gray", "brown", "stone"];
+const lightColors = ["white", "gray", "stone"];
 const darkColors = ["black", "navy", "brown", "olive"];
 
 const importDefaults: Record<Category, { color: string; formality: number }> = {
@@ -210,7 +211,14 @@ const colorKeywords: Record<string, string[]> = {
   gray: ["gray", "grey", "gris"],
   brown: ["brown", "marron", "cuero", "camel"],
   olive: ["olive", "oliva", "verde"],
+  stone: ["stone", "piedra"],
 };
+
+function migrateKnownGarmentColor(name: string, color: string) {
+  if (/mocasines marron oscuro/i.test(name)) return "black";
+  if (/vaquero recto claro/i.test(name)) return "stone";
+  return color;
+}
 
 function normalizeGarments(value: unknown): Garment[] {
   if (!Array.isArray(value)) return starterWardrobe;
@@ -223,7 +231,7 @@ function normalizeGarments(value: unknown): Garment[] {
       name: item.name ?? "Prenda sin nombre",
       category: item.category as Category,
       kind: item.kind && item.kind in kindLabels ? item.kind as GarmentKind : undefined,
-      color: item.color ?? "white",
+      color: migrateKnownGarmentColor(item.name ?? "", item.color ?? "white"),
       season: item.season ?? "all",
       formality: item.formality ?? 3,
       image: item.image,
