@@ -431,6 +431,42 @@ textarea:focus {
   padding: 14px;
 }
 
+.look-brief {
+  display: grid;
+  gap: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-soft);
+  padding: 16px;
+}
+
+.look-brief h3 {
+  margin: 0;
+  font-size: clamp(1.35rem, 2vw, 2rem);
+  line-height: 1.12;
+}
+
+.color-story {
+  display: grid;
+  gap: 8px;
+}
+
+.color-story span {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.color-story i {
+  width: 28px;
+  height: 18px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+}
+
 .piece-list {
   display: grid;
   gap: 10px;
@@ -556,6 +592,23 @@ textarea:focus {
 .ai-reasoning li::before {
   color: var(--line-strong);
   content: "- ";
+}
+
+.look-actions {
+  display: grid;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.look-actions p,
+.look-actions span {
+  margin: 0;
+}
+
+.look-actions p {
+  color: var(--text);
+  font-weight: 900;
 }
 
 .outfit-switcher {

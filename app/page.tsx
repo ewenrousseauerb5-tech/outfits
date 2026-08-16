@@ -343,6 +343,21 @@ function formatPrice(price?: string, currency?: string) {
   return symbol ? `${cleanPrice} ${symbol}` : `${cleanPrice} ${cleanCurrency}`;
 }
 
+function swatchColor(color: string) {
+  const swatches: Record<string, string> = {
+    black: "#171717",
+    white: "#f8f8f2",
+    navy: "#1f2f4f",
+    blue: "#7e9fbd",
+    gray: "#9a9a94",
+    brown: "#6b5142",
+    olive: "#68715a",
+    stone: "#d8d1c2",
+  };
+
+  return swatches[color] ?? color;
+}
+
 function createImportedGarment({
   category,
   kind,
@@ -957,37 +972,24 @@ export default function Home() {
             )}
           </div>
 
-          <aside className="look-details" aria-label="Prendas del look">
-            <div className="piece-list">
-              {displayedOutfit &&
-                allowedCategories.map((category) => {
-                  const piece = displayedOutfit.pieces[category];
-                  const image = getPrimaryImage(piece);
-                  return (
-                    <article className="piece-card" key={piece.id}>
-                      <div className="piece-thumb">
-                        {image ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={image} alt={piece.name} />
-                        ) : (
-                          <span>{piece.color}</span>
-                        )}
-                      </div>
-                      <div>
-                        <p>{piece.kind ? kindLabels[piece.kind] : categoryLabels[piece.category]}</p>
-                        <h3>{piece.name}</h3>
-                        <small>{piece.color}</small>
-                        {piece.productUrl && (
-                          <a href={piece.productUrl} target="_blank" rel="noreferrer">
-                            Ver fuente
-                          </a>
-                        )}
-                      </div>
-                    </article>
-                  );
-                })}
-            </div>
-            {displayedOutfit && <p className="look-summary">{displayedOutfit.summary}</p>}
+          <aside className="look-details" aria-label="Analisis del look">
+            {displayedOutfit && (
+              <div className="look-brief">
+                <p className="eyebrow">Seleccion</p>
+                <h3>{displayedOutfit.summary}</h3>
+                <div className="color-story" aria-label="Paleta del look">
+                  {allowedCategories.map((category) => {
+                    const piece = displayedOutfit.pieces[category];
+                    return (
+                      <span key={category}>
+                        <i style={{ background: swatchColor(piece.color) }} />
+                        {piece.kind ? kindLabels[piece.kind] : categoryShortLabels[category]}
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
             {displayedOutfit && (
               <div className="ai-reasoning" aria-label="Analisis de recomendacion">
                 <div>
@@ -999,6 +1001,12 @@ export default function Home() {
                     <li key={reason}>{reason}</li>
                   ))}
                 </ul>
+              </div>
+            )}
+            {displayedOutfit && (
+              <div className="look-actions">
+                <p>Alternativas</p>
+                <span>Cambia una propuesta o pulsa una prenda en el visual para rotarla.</span>
               </div>
             )}
             <div className="outfit-switcher" aria-label="Cambiar propuesta">
