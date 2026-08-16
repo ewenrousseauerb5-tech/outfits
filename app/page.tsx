@@ -1087,22 +1087,19 @@ export default function Home() {
                   )}
                 </div>
                 <div className="garment-info">
-                  <p>{categoryLabels[garment.category]}</p>
                   <label className="name-editor">
-                    Nombre
+                    <span>{categoryLabels[garment.category]}</span>
                     <input
                       aria-label={`Nombre de ${garment.name}`}
                       value={garment.name}
                       onChange={(event) => renameGarment(garment.id, event.target.value)}
                     />
                   </label>
-                  <small>{garment.color}</small>
-                  {garment.productUrl && (
-                    <a href={garment.productUrl} target="_blank" rel="noreferrer">
-                      Fuente
-                    </a>
-                  )}
-                  {imageCount > 1 && <span className="photo-count">{imageCount} fotos</span>}
+                  <p className="product-description">
+                    {garment.color}
+                    {imageCount > 1 ? ` · ${imageCount} fotos` : ""}
+                    {garment.productUrl ? " · tienda" : ""}
+                  </p>
                 </div>
                 <div className="garment-actions">
                   <label className="image-action">
