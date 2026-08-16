@@ -52,6 +52,8 @@ type Outfit = {
   pieces: Record<Category, Garment>;
   score: number;
   summary: string;
+  reasons: string[];
+  confidence: string;
 };
 
 const allowedCategories: Category[] = ["top", "bottom", "shoes"];
@@ -131,13 +133,6 @@ const categoryShortLabels: Record<Category, string> = {
   shoes: "Zapatos",
 };
 
-const occasionLabels: Record<Occasion, string> = {
-  office: "Oficina",
-  casual: "Casual",
-  dinner: "Cena",
-  travel: "Viaje",
-};
-
 const intentLabels: Record<Intent, string> = {
   minimal: "Minimal",
   smart: "Elegante",
@@ -167,6 +162,10 @@ const compatibleColors: Record<string, string[]> = {
   brown: ["white", "navy", "blue", "black", "olive"],
   olive: ["white", "black", "navy", "brown"],
 };
+
+const neutralColors = ["white", "black", "navy", "gray", "brown"];
+const lightColors = ["white", "gray"];
+const darkColors = ["black", "navy", "brown", "olive"];
 
 const importDefaults: Record<Category, { color: string; formality: number }> = {
   top: { color: "white", formality: 3 },
@@ -437,12 +436,64 @@ function scoreGarment(garment: Garment, occasion: Occasion, season: Season, inte
   return score;
 }
 
-function colorHarmony(pieces: Garment[]) {
-  return pieces.reduce((total, piece, index) => {
-    const previous = pieces[index - 1];
-    if (!previous) return total;
-    return total + (compatibleColors[previous.color]?.includes(piece.color) ? 1.5 : -0.5);
-  }, 0);
+function pairColorScore(a: string, b: string) {
+  if (a === b) return neutralColors.includes(a) ? 0.9 : 0.2;
+  if (compatibleColors[a]?.includes(b) || compatibleColors[b]?.includes(a)) return 1.8;
+  if (neutralColors.includes(a) || neutralColors.includes(b)) return 1;
+  return -0.8;
+}
+
+function hasContrast(colors: string[]) {
+  return colors.some((color) => lightColors.includes(color)) && colors.some((color) => darkColors.includes(color));
+}
+
+function analyzeOutfit(pieces: Garment[], season: Season, intent: Intent) {
+  const [top, bottom, shoes] = pieces;
+  const colors = pieces.map((piece) => piece.color);
+  const averageFormality = pieces.reduce((total, piece) => total + piece.formality, 0) / pieces.length;
+  const formalitySpread = Math.max(...pieces.map((piece) => piece.formality)) - Math.min(...pieces.map((piece) => piece.formality));
+  const colorScore =
+    pairColorScore(top.color, bottom.color) +
+    pairColorScore(bottom.color, shoes.color) +
+    pairColorScore(top.color, shoes.color);
+  const officeScore = 9 - Math.abs(averageFormality - targetFormality.office) * 1.8 - formalitySpread * 0.7;
+  const seasonScore = pieces.every((piece) => piece.season === "all" || piece.season === season || season === "all") ? 2 : -1;
+  const imageScore = pieces.filter((piece) => getPrimaryImage(piece)).length * 0.25;
+  const importScore = pieces.filter((piece) => piece.productUrl).length * 0.15;
+  const intentScore =
+    intent === "smart"
+      ? pieces.filter((piece) => piece.formality >= 4).length * 0.6
+      : intent === "relaxed"
+        ? pieces.filter((piece) => piece.formality <= 3).length * 0.5
+        : colors.filter((color) => neutralColors.includes(color)).length * 0.45;
+
+  const reasons = [];
+  if (colors.every((color) => neutralColors.includes(color))) {
+    reasons.push("Paleta neutra, facil de llevar en oficina.");
+  } else if (hasContrast(colors)) {
+    reasons.push("Buen contraste entre prendas claras y oscuras.");
+  } else {
+    reasons.push("Colores compatibles sin llamar demasiado la atencion.");
+  }
+
+  if (averageFormality >= 3.5 && formalitySpread <= 2) {
+    reasons.push("Nivel de formalidad equilibrado para trabajo.");
+  } else if (shoes.formality >= bottom.formality) {
+    reasons.push("Los zapatos elevan el conjunto.");
+  } else {
+    reasons.push("Look mas relajado, mejor para dias sin reuniones.");
+  }
+
+  if (top.color !== bottom.color && bottom.color !== shoes.color) {
+    reasons.push("Las tres piezas se leen separadas y ordenadas.");
+  }
+
+  return {
+    score: colorScore + officeScore + seasonScore + imageScore + importScore + intentScore,
+    reasons: reasons.slice(0, 3),
+    confidence: colorScore > 3.5 && officeScore > 6.5 ? "Alta" : "Media",
+    summary: `${top.name}, ${bottom.name} y ${shoes.name}. ${reasons[0]}`,
+  };
 }
 
 function buildOutfits(wardrobe: Garment[], occasion: Occasion, season: Season, intent: Intent) {
@@ -465,16 +516,19 @@ function buildOutfits(wardrobe: Garment[], occasion: Occasion, season: Season, i
     bottoms.forEach((bottom) => {
       shoes.forEach((shoe) => {
         const pieces = [top, bottom, shoe];
+        const ai = analyzeOutfit(pieces, season, intent);
         const score =
           pieces.reduce((total, item) => total + scoreGarment(item, occasion, season, intent), 0) +
-          colorHarmony(pieces);
+          ai.score;
 
         outfits.push({
           id: `${top.id}-${bottom.id}-${shoe.id}-${score.toFixed(2)}`,
-          title: `${occasionLabels[occasion]} ${intentLabels[intent].toLowerCase()}`,
+          title: `Recomendacion ${intentLabels[intent].toLowerCase()}`,
           pieces: { top, bottom, shoes: shoe },
           score,
-          summary: `${top.color}, ${bottom.color} y ${shoe.color}; una combinacion de tres piezas con nivel ${targetFormality[occasion]}/5.`,
+          summary: ai.summary,
+          reasons: ai.reasons,
+          confidence: ai.confidence,
         });
       });
     });
@@ -894,6 +948,19 @@ export default function Home() {
                 })}
             </div>
             {displayedOutfit && <p className="look-summary">{displayedOutfit.summary}</p>}
+            {displayedOutfit && (
+              <div className="ai-reasoning" aria-label="Analisis de recomendacion">
+                <div>
+                  <span>IA</span>
+                  <strong>Confianza {displayedOutfit.confidence}</strong>
+                </div>
+                <ul>
+                  {displayedOutfit.reasons.map((reason) => (
+                    <li key={reason}>{reason}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <div className="outfit-switcher" aria-label="Cambiar propuesta">
               {outfits.map((outfit, index) => (
                 <button
